@@ -1,0 +1,10 @@
+node_modules
+
+./vscode
+
+.vscode
+.idea/
+
+
+# Mac Stuff.
+.DS_Store

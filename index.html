@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    </head>
+    <body>
+        <h1>webrtc client(to cpp_media_server)</h1>
+        <div>
+            <label>server:</label> <input id='server' type='text' size=20 value="172.29.78.76:9110"/>
+            <br/>
+            <label>roomid:</label> <input id='roomId' type='text' size=10 />
+            <label>userid:</label> <input id='userId' type='text' size=10 />
+        </div>
+        <div>
+            <button id="join">join</button>
+            <button id="publish">publish</button>
+            <button id="unpublish">unpublish</button>
+            <br>
+        </div>
+        <div id="medialive">
+            publish preview:
+            <div id="container">
+                <video id="video_container_publish" playsinline controls autoplay muted width="320" height="240">
+                </video>
+            </div>
+        </div>
+        <script src="./index.js"></script>
+        <script>
+            var app = new AppController();
+        </script>
+    </body>
+</html>

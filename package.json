@@ -1,0 +1,39 @@
+{
+  "name": "websocketclient",
+  "version": "1.0.0",
+  "description": "websocket client for protoo",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "webpack serve --config ./webpack.config.js --port=9000"
+  },
+  "browser": {
+    "fs": false,
+    "path": false,
+    "os": false
+  },
+  "dependencies": {
+    "events": "",
+    "express": "^4.17.1",
+    "fs": "",
+    "net": "",
+    "protoo-client": "",
+    "sdp-transform": "",
+    "retry": "^0.12.0"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.12.10",
+    "@babel/preset-env": "^7.12.11",
+    "babel-loader": "^8.2.2",
+    "babel-plugin-import": "^1.13.3",
+    "fs": "",
+    "html-webpack-plugin": "^4.5.0",
+    "net": "",
+    "webpack": "",
+    "webpack-bundle-analyzer": "",
+    "webpack-cli": "^4.9.0",
+    "webpack-dev-server": ""
+  }
+}
