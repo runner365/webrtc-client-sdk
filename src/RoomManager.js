@@ -8,8 +8,82 @@ class UserInfo extends EnhancedEventEmitter
 {
     constructor(roomId, uid) {
         super();
-        this._roomId = roomId;
-        this._uid    = uid;
+        this._roomId     = roomId;
+        this._uid        = uid;
+        this._rtcRecvDev = null;
+    }
+
+    InitRecvPC() {
+        if (this._rtcRecvDev == null) {
+            this._rtcRecvDev = new RtcSubscribeDevice();
+            this._rtcRecvDev.CreateCameraMedia();
+            this._rtcRecvDev.CreatePeerConnection();
+        }
+    }
+
+    async SubscribeUserStream(rtcClient, midinfos) {
+        let sdp;
+
+        this.InitRecvPC();
+
+        for (const mediaInfo of midinfos) {
+            this._rtcRecvDev.AddSubscriberMedia(mediaInfo);
+        }
+        
+        try {
+            sdp = await this._rtcRecvDev.GetSubscribeSdp();
+        } catch (error) {
+            console.log("start subscribe error:", error);
+            throw error;
+        }
+
+        console.log("start subscribe remoteUid:", this._uid, "sdp:", sdp);
+        let sdpObj = SdpTransformer.parse(sdp);
+        for (const media of sdpObj.media) {
+            for (const info of midinfos) {
+                if (info.type == media.type) {
+                    info.mid = media.mid;
+                    break;
+                }
+            }
+        }
+        console.log("local midinfos object:", JSON.stringify(midinfos));
+
+        //send subscribe request to server
+        let respData;
+        try {
+            respData = await rtcClient.Subscribe(this._uid, midinfos, sdp);
+        } catch (error) {
+            console.log("rtc client subscribe error:", error);
+            throw error;
+        }
+        if (respData.code != 0) {
+            throw new Error("subscribe error:" + respData.desc);
+        }
+        console.log("rtc client subscribe response data:", respData);
+
+        let respSdp = respData.sdp;
+        let sdpJson = SdpTransformer.parse(respSdp);
+        console.log("rtc json sdp:", JSON.stringify(sdpJson));
+        this._rtcRecvDev.UpdateRemoteSdp(respSdp);
+
+        let trackList = [];
+        for (const mediaInfo of midinfos) {
+            let newTrack = await new Promise(async (resolve, reject) => {
+                this._rtcRecvDev.on('newTrack', (track) => {
+                    console.log("rtc manager rtc receive new track:", track);
+                    if (track != null) {
+                        resolve(track);
+                    } else {
+                        reject(track);
+                    }
+                });
+            });
+            trackList.push(newTrack);
+        }
+        console.log("get new track list:", trackList);
+
+        return this._rtcRecvDev.mediaStream;
     }
 };
 
@@ -25,7 +99,6 @@ class RoomManager extends EnhancedEventEmitter
         this._joined       = false;
         this._publish      = false;
         this._rtcSendDev   = null;
-        this._rtcRecvDev   = null;
         this._client       = null;
         this._users        = new Map();
         this._videoElement = null;
@@ -111,7 +184,8 @@ class RoomManager extends EnhancedEventEmitter
         var midinfos  = publishData.publishers;
         console.log("receive new publisher uid:", remoteUid, "midinfos:", midinfos);
 
-        this.Subscribe(remoteUid, midinfos);
+        this.emit('newPublish', {remoteUid, midinfos});
+        //this.Subscribe(remoteUid, midinfos);
     }
 
     _handleRemovePublisher(unpublishData) {
@@ -142,47 +216,19 @@ class RoomManager extends EnhancedEventEmitter
     async Subscribe(remoteUid, midinfos) {
         let sdp;
 
-        if (this._rtcRecvDev == null) {
-            this._rtcRecvDev = new RtcSubscribeDevice();
-            this._rtcRecvDev.CreateCameraMedia();
-            this._rtcRecvDev.CreatePeerConnection();
+        let isExist = this._users.has(remoteUid);
+        if (!isExist) {
+            throw new Error('remote uid:', remoteUid, "doesn't exist");
         }
-        try {
-            sdp = await this._rtcRecvDev.StartSubscribe(midinfos);
-        } catch (error) {
-            console.log("start subscribe error:", error);
-            throw error;
-        }
-        
-        console.log("start subscribe remoteUid:", remoteUid, "sdp:", sdp);
-        let sdpObj = SdpTransformer.parse(sdp);
-        for (const media of sdpObj.media) {
-            for (const info of midinfos) {
-                if (info.type == media.type) {
-                    info.mid = media.mid;
-                    break;
-                }
-            }
-        }
-        console.log("local midinfos object:", JSON.stringify(midinfos));
+        let remoteUerInfo = this._users.get(remoteUid);
 
-        //send subscribe request to server
-        let respData;
-        try {
-            respData = await this._client.Subscribe(remoteUid, midinfos, sdp);
-        } catch (error) {
-            console.log("rtc client subscribe error:", error);
-            throw error;
-        }
-        if (respData.code != 0) {
-            throw new Error("subscribe error:" + respData.desc);
-        }
-        console.log("rtc client subscribe response data:", respData);
+        remoteUerInfo.InitRecvPC();
 
-        let respSdp = respData.sdp;
-        let sdpJson = SdpTransformer.parse(respSdp);
-        console.log("rtc json sdp:", JSON.stringify(sdpJson));
-        await this._rtcRecvDev.UpdateRemoteSdp(respSdp);
+        let newMediaStream = await remoteUerInfo.SubscribeUserStream(this._client, midinfos);
+
+        console.log("create remote user:", remoteUid, "media stream:", newMediaStream);
+
+        return newMediaStream;
     }
 
     async PublishVideoStream()

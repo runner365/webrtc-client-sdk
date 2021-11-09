@@ -1,5 +1,6 @@
+const EnhancedEventEmitter = require('./EnhancedEventEmitter');
 
-class RtcSubscribeDevice
+class RtcSubscribeDevice extends EnhancedEventEmitter
 {
     construct()
     {
@@ -53,21 +54,36 @@ class RtcSubscribeDevice
         };
         this._receiverPC.ontrack = (e) => {
             console.log("peer connection on track event:", e);
+            if (this.mediaStream == null) {
+                this.mediaStream = new MediaStream();
+            }
+            if (e.track.kind == 'video') {
+                console.log("add remote video track:", e.track);
+                this.mediaStream.addTrack(e.track);
+                this.emit('newTrack', e.track);
+            } else if (e.track.kind == 'audio') {
+                console.log("add remote audio track:", e.track);
+                this.mediaStream.addTrack(e.track);
+                this.emit('newTrack', e.track);
+            } else {
+                throw new Error("unkown track kind" + e.track.kind);
+            }
         };
         console.log("create receive peer connection is done");
     }
 
-    async StartSubscribe(midinfos) {
-        console.log("start subscribe mid infos:", midinfos);
-        for (const info of midinfos) {
-            if (info.type == 'video') {
-                this._receiverPC.addTransceiver("video", {direction: "recvonly"});
-            } else if (info.type == 'audio') {
-                this._receiverPC.addTransceiver("audio", {direction: "recvonly"});
-            } else {
-                throw new Error('unkown media type:' + info.type);
-            }
+    AddSubscriberMedia(mediaInfo) {
+        if (mediaInfo.type == 'video') {
+            this._receiverPC.addTransceiver("video", {direction: "recvonly"});
+        } else if (mediaInfo.type == 'audio') {
+            this._receiverPC.addTransceiver("audio", {direction: "recvonly"});
+        } else {
+            throw new Error('unkown media type:' + mediaInfo.type);
         }
+    }
+
+    async GetSubscribeSdp() {
+        console.log('GetSubscribeSdp()...');
         var offer = await this._receiverPC.createOffer();
         await this._receiverPC.setLocalDescription(offer);
 
@@ -75,14 +91,9 @@ class RtcSubscribeDevice
         return offer.sdp;
     }
 
-    async UpdateRemoteSdp(remoteSdp) {
+    UpdateRemoteSdp(remoteSdp) {
         const answer = { type: 'answer', sdp: remoteSdp };
-        try {
-            await this._receiverPC.setRemoteDescription(answer)            
-        } catch (error) {
-            console.log("set remote desc error:", error);
-            throw error;
-        }
+        this._receiverPC.setRemoteDescription(answer)
     }
 };
 

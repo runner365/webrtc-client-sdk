@@ -1,4 +1,5 @@
 const SdpTransformer = require('sdp-transform');
+const EnhancedEventEmitter = require('./EnhancedEventEmitter');
 
 const PUBLISH_SDP_OFFER_OPTIONS = {
     offerToReceiveAudio: 0,
@@ -12,7 +13,7 @@ const SUBSCRIBE_SDP_OFFER_OPOTIONS = {
     voiceActivityDetection: true
 };
 
-class RtcPublishDevice
+class RtcPublishDevice extends EnhancedEventEmitter
 {
     construct()
     {

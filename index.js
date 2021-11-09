@@ -17,6 +17,7 @@ var AppController = function () {
     } catch (error) {
         console.log('room manager init error:', error);
     }
+    this.remoteUsers = new Map();
     this.roomMgr.createMedia(this.mediaElement);
 
     this.joinButton       = document.getElementById("join");
@@ -33,7 +34,45 @@ AppController.prototype.JoinClicked = async function () {
     if (this.roomMgr == null) {
         throw new Error("room manager is not ready.");
     }
-    this.roomMgr.Join();
+    await this.roomMgr.Join();
+
+    this.roomMgr.on('newPublish', async ({remoteUid, midinfos}) => {
+        console.log('new publisher remoteUid:', remoteUid, "media info:", midinfos);
+
+        let newMediaStrema = await this.roomMgr.Subscribe(remoteUid, midinfos);
+        console.log("web page get new mediastream:", newMediaStrema);
+
+        let userContainer = document.createElement("div");
+        userContainer.id = 'userContainer_' + remoteUid;
+
+        let userLabel = document.createElement("label");
+        userLabel.id = 'userLabel_' + remoteUid;
+        userLabel.innerHTML = 'user: ' + remoteUid;
+        userContainer.appendChild(userLabel);
+
+        let mediaContainer = document.createElement("div");
+        mediaContainer.id = 'mediaContainer_' + remoteUid;
+        userContainer.appendChild(mediaContainer);
+
+        let videoElement = document.createElement("video");
+        videoElement.id = 'videoElement_' + remoteUid;
+        videoElement.srcObject = newMediaStrema;
+        mediaContainer.appendChild(videoElement);
+
+        let remoteContainerElement = document.getElementById('remoteContainer');
+        remoteContainerElement.appendChild(userContainer);
+
+        videoElement.addEventListener("canplay", () => {
+            console.log("remote user:", remoteUid, "canplay....");
+            videoElement.play();
+        });
+        let userElement = {
+            'midinfos' : midinfos,
+            'mediasteam' : newMediaStrema
+        }
+
+        this.remoteUsers.set(remoteUid, userElement);
+    });
 }
 
 AppController.prototype.PublishClicked = async function () {
