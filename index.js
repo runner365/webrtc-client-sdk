@@ -22,7 +22,6 @@ var AppController = function () {
     this.publishButton.onclick    = this.PublishClicked.bind(this);
     this.unpublishButtton.onclick = this.UnPublishClicked.bind(this);
 
-    this._client = new Client();
 };
 
 
@@ -31,7 +30,7 @@ AppController.prototype.JoinClicked = async function () {
     this.roomId = document.getElementById('roomId').value.toString();
     this.userId = document.getElementById('userId').value.toString();
 
-    this._client.Init({server: this.server, roomId: this.roomId, uid: this.userId});
+    this._client = new Client();
 
     let cameraMediaStream = await this._client.OpenCamera();
 
@@ -43,14 +42,64 @@ AppController.prototype.JoinClicked = async function () {
             this.mediaElement.play();
         }
     });
+
+    let usersInRoom = null;//{"users":[{"uid":"11111"}, {"uid":"22222"}]}
+    try
+    {
+        usersInRoom = await this._client.Join({serverHost: this.server,
+                                            roomId: this.roomId,
+                                            uid: this.userId});
+    }
+    catch (error)
+    {
+        console.log("join error:", error);
+        return;
+    }
+
+    this._client.on('publish', async (data) => {
+        try {
+            let newMediaStream = await this._client.Subscribe(data['uid'], data['publishers']);
+            
+            let userContainer = document.createElement("div");
+            userContainer.id = 'userContainer_' + remoteUid;
+
+            let userLabel = document.createElement("label");
+            userLabel.id = 'userLabel_' + remoteUid;
+            userLabel.innerHTML = 'remote user: ' + remoteUid;
+            userContainer.appendChild(userLabel);
+    
+            let mediaContainer = document.createElement("div");
+            mediaContainer.id = 'mediaContainer_' + remoteUid;
+            userContainer.appendChild(mediaContainer);
+    
+            let videoElement = document.createElement("video");
+            videoElement.id = 'videoElement_' + remoteUid;
+            videoElement.srcObject    = newMediaStream;
+            videoElement.style.width  = 320;
+            videoElement.style.height = 240;
+            mediaContainer.appendChild(videoElement);
+    
+            let remoteContainerElement = document.getElementById('remoteContainer');
+            remoteContainerElement.appendChild(userContainer);
+    
+            videoElement.addEventListener("canplay", () => {
+                console.log("remote user:", remoteUid, "canplay....");
+                videoElement.play();
+            });
+        } catch (error) {
+            console.log("subscribe error:", error);
+            return;
+        }
+    })
+    //join: {serverHost: this.server, roomId: this.roomId, uid: this.userId}
 }
 
 AppController.prototype.PublishClicked = async function () {
-
+    await this._client.PublishCamera({videoEnable: true, audioEnable: true});
 }
 
 AppController.prototype.UnPublishClicked = async function () {
-
+    await this._client.UnPublishCamera({videoDisable: true, audioDisable: true});
 }
 
 var appConntrol = new AppController();

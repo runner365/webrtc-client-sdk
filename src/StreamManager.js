@@ -6,9 +6,7 @@ class StreamManager extends EnhancedEventEmitter
     /*
     mediaType: 'camera', 'shared screen'
     */
-    construct({mediaType})
-    {
-        this._mediaType  = mediaType;
+    construct() {
         this._width      = 640;
         this._height     = 480;
         this._vBitrate   = 800*1000;
@@ -18,6 +16,18 @@ class StreamManager extends EnhancedEventEmitter
         this._mediastream = null;
         this._videoTrack  = null;
         this._audioTrack  = null;
+
+        console.log("StreamManager construct mediatype:", mediaType);
+    }
+
+    GetAudioTrack()
+    {
+        return this._audioTrack;
+    }
+
+    GetVideoTrack()
+    {
+        return this._videoTrack;
     }
 
     SetVideoParam({width, height, bitrate})
@@ -33,14 +43,14 @@ class StreamManager extends EnhancedEventEmitter
         this._sampleRate = sampleRate;
     }
 
-    async Open()
+    async Open(mediaType)
     {
         if (this._mediastream) {
             throw new Error("the mediastream has been opened.");
         }
-
+        this._mediaType = mediaType;
         let constraints = {
-            video: { width: { exact: this._width }, height: { exact: thiis.height } },
+            video: { width: { exact: this._width }, height: { exact: this.height } },
             audio: {
                 channelCount: this._channel,
                 sampleRate: this._sampleRate,
@@ -48,20 +58,22 @@ class StreamManager extends EnhancedEventEmitter
         }
         let ms = null;
         
+        console.log("stream manager open mediatype:", mediaType, "constraints:", constraints);
         try {
-            if (this._mediaType == 'camera')
+            if (mediaType == 'camera')
             {
-                await navigator.mediaDevices.getUserMedia(constraints);
+                ms = await navigator.mediaDevices.getUserMedia(constraints);
             }
-            else if (this._mediaType == 'screen')
+            else if (mediaType == 'screen')
             {
-                await navigator.mediaDevices.getDisplayMedia(constraints);
+                ms = await navigator.mediaDevices.getDisplayMedia(constraints);
             }
             else
             {
-                throw new Error("the media type is error:", this._mediaType);
+                throw new Error("the media type is error:" + this._mediaType);
             }
         } catch (error) {
+
             throw error;
         }
         
@@ -89,7 +101,5 @@ class StreamManager extends EnhancedEventEmitter
         this._audioTrack  = null;
     }
 };
-
-;
 
 module.exports = StreamManager;
