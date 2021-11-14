@@ -1,4 +1,4 @@
-const RoomManager = require('./src/RoomManager');
+const Client = require('./src/Client');
 
 console.log('------------------------------');
 
@@ -12,13 +12,7 @@ var AppController = function () {
     this.mediaElement = document.getElementById('video_container_publish');
 
     console.log("server:", this.server, "roomId:", this.roomId, "userId:", this.userId);
-    try {
-        this.roomMgr = new RoomManager(this.server, this.roomId, this.userId);
-    } catch (error) {
-        console.log('room manager init error:', error);
-    }
-    this.remoteUsers = new Map();
-    this.roomMgr.createMedia(this.mediaElement);
+    
 
     this.joinButton       = document.getElementById("join");
     this.publishButton    = document.getElementById("publish");
@@ -27,60 +21,112 @@ var AppController = function () {
     this.joinButton.onclick       = this.JoinClicked.bind(this);
     this.publishButton.onclick    = this.PublishClicked.bind(this);
     this.unpublishButtton.onclick = this.UnPublishClicked.bind(this);
+
 };
 
 
 AppController.prototype.JoinClicked = async function () {
-    if (this.roomMgr == null) {
-        throw new Error("room manager is not ready.");
+    this.server = document.getElementById('server').value;
+    this.roomId = document.getElementById('roomId').value.toString();
+    this.userId = document.getElementById('userId').value.toString();
+
+    this._client = new Client();
+
+    var cameraMediaStream = await this._client.OpenCamera();
+
+    this.mediaElement.srcObject = cameraMediaStream;
+
+    this.mediaElement.addEventListener("canplay", () => {
+        if (this.mediaElement) {
+            console.log("start play the local camera view.");
+            this.mediaElement.play();
+        }
+    });
+
+    var usersInRoom = null;//{"users":[{"uid":"11111"}, {"uid":"22222"}]}
+    try
+    {
+        usersInRoom = await this._client.Join({serverHost: this.server,
+                                            roomId: this.roomId,
+                                            uid: this.userId});
     }
-    await this.roomMgr.Join();
+    catch (error)
+    {
+        console.log("join error:", error);
+        return;
+    }
 
-    this.roomMgr.on('newPublish', async ({remoteUid, midinfos}) => {
-        console.log('new publisher remoteUid:', remoteUid, "media info:", midinfos);
+    this._client.on('unpublish', async(data) => {
+        var remoteUid = data.uid;
+        var publishersInfo = data.publishers;
 
-        let newMediaStrema = await this.roomMgr.Subscribe(remoteUid, midinfos);
-        console.log("web page get new mediastream:", newMediaStrema);
+        try {
+            this._client.UnSubscribe(remoteUid, publishersInfo);
+        } catch (error) {
+            console.log("UnSubscribe error:", error);
+            throw error;
+        }
+        var elementId = 'userContainer_' + remoteUid;
+        var userContainer = document.getElementById(elementId);
+        var remoteContainerElement = document.getElementById('remoteContainer');
 
-        let userContainer = document.createElement("div");
-        userContainer.id = 'userContainer_' + remoteUid;
-
-        let userLabel = document.createElement("label");
-        userLabel.id = 'userLabel_' + remoteUid;
-        userLabel.innerHTML = 'user: ' + remoteUid;
-        userContainer.appendChild(userLabel);
-
-        let mediaContainer = document.createElement("div");
-        mediaContainer.id = 'mediaContainer_' + remoteUid;
-        userContainer.appendChild(mediaContainer);
-
-        let videoElement = document.createElement("video");
-        videoElement.id = 'videoElement_' + remoteUid;
-        videoElement.srcObject = newMediaStrema;
-        mediaContainer.appendChild(videoElement);
-
-        let remoteContainerElement = document.getElementById('remoteContainer');
-        remoteContainerElement.appendChild(userContainer);
-
-        videoElement.addEventListener("canplay", () => {
-            console.log("remote user:", remoteUid, "canplay....");
-            videoElement.play();
-        });
-        let userElement = {
-            'midinfos' : midinfos,
-            'mediasteam' : newMediaStrema
+        if (userContainer == null)
+        {
+            console.log("fail to get element by id:", elementId);
+            return;
         }
 
-        this.remoteUsers.set(remoteUid, userElement);
+        remoteContainerElement.removeChild(userContainer);
     });
+
+    this._client.on('publish', async (data) => {
+        try {
+            var remoteUid  = data['uid'];
+            var remotePcId = data['pcid'];
+
+            var newMediaStream = await this._client.Subscribe(remoteUid, remotePcId, data['publishers']);
+            
+            var userContainer = document.createElement("div");
+            userContainer.id = 'userContainer_' + remoteUid;
+
+            var userLabel = document.createElement("label");
+            userLabel.id = 'userLabel_' + remoteUid;
+            userLabel.innerHTML = 'remote user: ' + remoteUid;
+            userContainer.appendChild(userLabel);
+    
+            var mediaContainer = document.createElement("div");
+            mediaContainer.id = 'mediaContainer_' + remoteUid;
+            userContainer.appendChild(mediaContainer);
+    
+            var videoElement = document.createElement("video");
+            videoElement.id = 'videoElement_' + remoteUid;
+            videoElement.srcObject    = newMediaStream;
+            videoElement.style.width  = 320;
+            videoElement.style.height = 240;
+            mediaContainer.appendChild(videoElement);
+    
+            var remoteContainerElement = document.getElementById('remoteContainer');
+            remoteContainerElement.appendChild(userContainer);
+    
+            videoElement.addEventListener("canplay", () => {
+                console.log("remote user:", remoteUid, "canplay....");
+                videoElement.play();
+            });
+        } catch (error) {
+            console.log("subscribe error:", error);
+            return;
+        }
+    });
+
+    //join: {serverHost: this.server, roomId: this.roomId, uid: this.userId}
 }
 
 AppController.prototype.PublishClicked = async function () {
-    this.roomMgr.PublishStream();
+    await this._client.PublishCamera({videoEnable: true, audioEnable: true});
 }
 
 AppController.prototype.UnPublishClicked = async function () {
-    this.roomMgr.PublishCloseAudio();
+    await this._client.UnPublishCamera({videoDisable: true, audioDisable: true});
 }
 
 var appConntrol = new AppController();

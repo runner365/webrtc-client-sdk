@@ -56,11 +56,11 @@ class RtcClient extends EnhancedEventEmitter
 
         console.log("ws is connected, starting joining...");
 		
-        let data = {
+        var data = {
             'roomId': roomId,
             'uid': uid
         };
-        let respData = null;
+        var respData = null;
         try {
             respData = await this.ws.request('join', data);
         } catch (error) {
@@ -74,14 +74,14 @@ class RtcClient extends EnhancedEventEmitter
 
     async Publish(sdp)
     {
-        let respData = null;
+        var respData = null;
         if (!this._connected) {
             throw new Error("pubish return for connection is closed.")
         }
         if (this._publish) {
             throw new Error("user has already published, roomId:" + this.roomId + ", uid:" + this.uid);
         }
-        let data = {
+        var data = {
             'roomId': this.roomId,
             'uid': this.uid,
             'sdp' : sdp
@@ -100,7 +100,7 @@ class RtcClient extends EnhancedEventEmitter
     }
 
     async UnPublish(mids) {
-        let respData = null;
+        var respData = null;
         if (!this._connected) {
             throw new Error("unpubish return for connection is closed.")
         }
@@ -108,7 +108,7 @@ class RtcClient extends EnhancedEventEmitter
             throw new Error("user has not already published, roomId:" + this.roomId + ", uid:" + this.uid);
         }
 
-        let data = {
+        var data = {
             'roomId': this.roomId,
             'uid': this.uid,
             'mids' : mids
@@ -128,12 +128,12 @@ class RtcClient extends EnhancedEventEmitter
     }
 
     async Subscribe(remoteUid, midinfos, sdp) {
-        let respData = null;
+        var respData = null;
         if (!this._connected) {
             throw new Error("subscribe return for connection is closed.")
         }
 
-        let data = {
+        var data = {
             'roomId': this.roomId,
             'uid': this.uid,
             'remoteUid': remoteUid,
