@@ -17,14 +17,10 @@ class Client extends EnhancedEventEmitter
 
         this._closed = true;
         this._connected = true;
-        this._sendPC = new PCManager();
-        this._sendPC.CreatePeerConnection('send');
-        this._recvPC = new PCManager();
-        this._recvPC.CreatePeerConnection('recv');
+        this._sendPCMap = new Map();//peerConnectionId, PCManager object
+        this._recvPCMap = new Map();//peerConnectionId, PCManager object
 
-        this._cameraVideoMid = 0;
-        this._cameraAudioMid = 0;
-        this._publishCamera  = false;
+        this._cameraIndex  = 0;
     }
 
     async OpenCamera()
@@ -55,19 +51,19 @@ class Client extends EnhancedEventEmitter
 
         this.ws = new wsClient();
 
-        this.url = 'ws://' + serverHost + '/?' + 'roomid=' + roomId + '&uid=' + uid;
+        this.url = 'ws://' + serverHost;
         this.ws.Connect(this.url);
 
         await new Promise((resolve, reject) => {
             this._wsRegistEvent(resolve, reject);
         });
 
-        let data = {
+        var data = {
             'roomId': roomId,
             'uid': uid
         };
         console.log("ws is connected, starting joining server:", this.url, "data:", data);
-        let respData = null;
+        var respData = null;
         try {
             respData = await this.ws.request('join', data);
         } catch (error) {
@@ -75,11 +71,11 @@ class Client extends EnhancedEventEmitter
             throw error;
         }
 
-        let users = respData['users'];
+        var users = respData['users'];
         for (const user of users)
         {
-            let uid = user['uid'];
-            let userinfo = new UserInfo({roomId: this._roomId, uid: uid});
+            var uid = user['uid'];
+            var userinfo = new UserInfo({roomId: this._roomId, uid: uid});
 
             this._remoteUsers.set(uid, userinfo);
         }
@@ -110,7 +106,7 @@ class Client extends EnhancedEventEmitter
             throw new Error('the camera has been published');
         }
 
-        let mediaTracks = [];
+        var mediaTracks = [];
         if (videoEnable)
         {
             mediaTracks.push(this._cameraStream.GetVideoTrack());
@@ -120,29 +116,23 @@ class Client extends EnhancedEventEmitter
             mediaTracks.push(this._cameraStream.GetAudioTrack());
         }
 
-        let offerInfo = await this._sendPC.AddSendMediaTrack(mediaTracks);
-        for (const info of offerInfo.mids)
-        {
-            if (info.type == 'video')
-            {
-                this._cameraVideoMid = info.mid;
-            }
-            else if (info.type == 'audio')
-            {
-                this._cameraAudioMid = info.mid;
-            }
-            else
-            {
-                console.log("unkown media type:", info.type);
-                throw new Error("unkown media type: " + info.type);
-            }
+        var sendCameraPc = null;
+        var offerInfo;
+        try {
+            sendCameraPc = new PCManager();
+            sendCameraPc.CreatePeerConnection('send');
+            sendCameraPc.SetType('camera');
+            offerInfo = await sendCameraPc.AddSendMediaTrack(mediaTracks);
+        } catch (error) {
+            throw error;
         }
-        let data = {
+
+        var data = {
             'roomId': this._roomId,
             'uid': this._uid,
             'sdp' : offerInfo.offSdp
         }
-        let respData;
+        var respData;
 
         try {
             respData = await this.ws.request('publish', data);
@@ -152,11 +142,30 @@ class Client extends EnhancedEventEmitter
         }
         console.log("Publish response message:", respData);
 
-        let answerSdp = respData['sdp'];
+        var answerSdp = respData['sdp'];
+        var peerConnectionId = respData['pcid'];
 
-        await this._sendPC.SetSendAnswerSdp(answerSdp);
+        sendCameraPc.SetId(peerConnectionId);
 
-        this._publishCamera  = true;
+        await sendCameraPc.SetSendAnswerSdp(answerSdp);
+
+        var answerSdpObj = SdpTransformer.parse(answerSdp);
+        for (const item of answerSdpObj.media)
+        {
+            if (item.type == 'video')
+            {
+                this._cameraVideoMid = item.mid;
+            }
+            else if (item.type == 'audio')
+            {
+                this._cameraAudioMid = item.mid;
+            }
+            else
+            {
+                throw new Error("the sdp type is unkown:", item.type);
+            }
+        }
+        this._sendPCMap.set(peerConnectionId, sendCameraPc);
         return;
     }
 
@@ -177,40 +186,41 @@ class Client extends EnhancedEventEmitter
             throw new Error('video and audio are not disable');
         }
 
-        if (!this._publishCamera)
-        {
-            throw new Error('the camera has not been published');
-        }
-
-        let removeMids = [];
-        let requestMids = [];
+        var removeMids = [];
         if (videoDisable)
         {
             removeMids.push(this._cameraVideoMid);
-            requestMids.push({
-                'mid': this._cameraVideoMid,
-                'type': "video"
-            });
         }
         if (audioDisable)
         {
             removeMids.push(this._cameraAudioMid);
-            requestMids.push({
-                'mid': this._cameraAudioMid,
-                'type': "audio"
-            });
         }
 
-        this._sendPC.removeSendTrack(removeMids);
+        var sendPC = null;
+
+        for (var pc of this._sendPCMap.values())
+        {
+            if (pc.GetType() == 'camera')
+            {
+                sendPC = pc;
+            }
+        }
+        if (sendPC == null)
+        {
+            throw new Error("fail to find camera");
+        }
+        sendPC.removeSendTrack(removeMids);
+
+        this._sendPCMap.delete(sendPC.GetId());
 
         //send unpublish request
-        let data = {
+        var data = {
             'roomId': this._roomId,
             'uid': this._uid,
-            'mids' : requestMids
+            'pcid' : sendPC.GetId()
         }
 
-        let respData;
+        var respData;
         try {
             console.log("unpublish request: ", data);
             respData = await this.ws.request('unpublish', data);
@@ -220,7 +230,6 @@ class Client extends EnhancedEventEmitter
         }
         console.log("UnPublish response message:", respData);
 
-        this._publishCamera  = false;
         return respData;
     }
 
@@ -253,9 +262,9 @@ class Client extends EnhancedEventEmitter
                 console.log("notification info:", info);
                 if (info.method == 'userin')
                 {
-                    let remoteUid = info.data['uid'];
-                    let remoteUser = new UserInfo({roomId: this._roomId, uid:remoteUid});
-                    this._remoteUsers.set(uid, remoteUser);
+                    var remoteUid = info.data['uid'];
+                    var remoteUser = new UserInfo({roomId: this._roomId, uid:remoteUid});
+                    this._remoteUsers.set(remoteUid, remoteUser);
                 }
                 this.safeEmit(info.method, info.data);
             } catch (error) {
@@ -265,53 +274,43 @@ class Client extends EnhancedEventEmitter
         });
     }
 
-    /*
-    input: 
-        mideinfos: [{mid: 0, pid: 'xxxxx', ssrc: xxxxx, type: 'video'}]
-    */
-    async Subscribe(remoteUid, midinfos)
+    async Subscribe(remoteUid, remotePcId, publishers)
     {
         if (!this._connected)
         {
             throw new Error('websocket is not ready');
         }
 
-        let hasUid = this._remoteUsers.has(remoteUid);
+        var hasUid = this._remoteUsers.has(remoteUid);
         if (!hasUid)
         {
             throw new Error('remote uid has not exist:' + remoteUid);
         }
-        let remoteUser = this._remoteUsers.get(remoteUid);
+        var remoteUser = this._remoteUsers.get(remoteUid);
 
-        console.log("start subscribe remote user:", remoteUser, "midinfo:", midinfos);
+        console.log("start subscribe remote user:", remoteUser, "publishers:", publishers);
 
-        for (const info of midinfos) {
-            this._recvPC.AddSubscriberMedia(info.type);
+        var recvPC = new PCManager();
+        recvPC.CreatePeerConnection('recv');
+        recvPC.SetRemoteUid(remoteUid);
+
+        for (const info of publishers) {
+            recvPC.AddSubscriberMedia(info);
         }
 
-        let offerSdp = await this._recvPC.GetSubscribeOfferSdp();
-        let sdpObj = SdpTransformer.parse(offerSdp);
-        let baseIndex = sdpObj.media.length - midinfos.length;
-        let maxIndex = sdpObj.media.length;
-        for (let index = baseIndex; index < maxIndex; index++) {
-            let media = sdpObj.media[index];
-            for (let info of midinfos) {
-                if (info.type == media.type) {
-                    info.localMid = media.mid;//set localMid for local peerconnection
-                    break;
-                }
-            }
-        }
+        var offerSdp = await recvPC.GetSubscribeOfferSdp();
+        var offerSdpObj = SdpTransformer.parse(offerSdp);
 
-        console.log("subscriber offer sdp:", offerSdp);
-        console.log("update publisher midinfos:", midinfos);
+        console.log("subscriber offer sdp:", offerSdpObj);
+        console.log("update publishers:", publishers);
 
-        let respData = null;
-        let data = {
+        var respData = null;
+        var data = {
             'roomId': this._roomId,
             'uid': this._uid,
             'remoteUid': remoteUid,
-            'publishers': midinfos,
+            'remotePcId': remotePcId,
+            'publishers': publishers,
             'sdp' : offerSdp
         }
 
@@ -324,18 +323,20 @@ class Client extends EnhancedEventEmitter
         }
         console.log("subscribe response message:", respData);
 
-        let respSdp = respData.sdp;
-        let respSdpJson = SdpTransformer.parse(respSdp);
+        var respSdp = respData.sdp;
+        var pcid    = respData.pcid;
+        var respSdpJson = SdpTransformer.parse(respSdp);
 
         console.log("subscribe response json sdp:", JSON.stringify(respSdpJson));
-        this._recvPC.UpdateRemoteSubscriberSdp(respSdp);
+        recvPC.SetRemoteSubscriberSdp(respSdp);
 
-        let trackList = [];
-        for (const mediaInfo of midinfos)
+        var trackList = [];
+        for (const mediaInfo of publishers)
         {
-            let newTrack = await new Promise(async (resolve, reject) =>
+            console.log("subscribe is waiting track ready...");
+            var newTrack = await new Promise(async (resolve, reject) =>
             {
-                this._recvPC.on('newTrack', (track) => {
+                recvPC.on('newTrack', (track) => {
                     console.log("rtc receive new track:", track);
                     if (track != null) {
                         resolve(track);
@@ -351,7 +352,7 @@ class Client extends EnhancedEventEmitter
         }
         console.log("receive new track list:", trackList);
 
-        let mediaStream = remoteUser.CreateMedaiStream();
+        var mediaStream = remoteUser.CreateMediaStream();
 
         for (const track of trackList)
         {
@@ -359,7 +360,65 @@ class Client extends EnhancedEventEmitter
             mediaStream.addTrack(track);
         }
 
+        console.log("set subscribe pcid:", pcid, "publishers:", publishers);
+        recvPC.SetSubscribeInfo(pcid, publishers)
+        recvPC.SetId(pcid);
+        this._recvPCMap.set(pcid, recvPC);
         return mediaStream;
+    }
+
+    async UnSubscribe(remoteUid, publisers)
+    {
+        if (!this._connected)
+        {
+            throw new Error('websocket is not ready');
+        }
+
+        var hasUid = this._remoteUsers.has(remoteUid);
+        if (!hasUid)
+        {
+            throw new Error('remote uid has not exist:' + remoteUid);
+        }
+        var remoteUser = this._remoteUsers.get(remoteUid);
+        var pcid = '';
+
+        console.log("start unsubscribe remote user:", remoteUser, "publishers:", publisers);
+
+        for (var [keyPCid, recvPC] of this._recvPCMap)
+        {
+            pcid = recvPC.GetSubscribePcId(publisers);
+            if (pcid != undefined && pcid.length > 0)
+            {
+                break;
+            }
+        }
+        if (pcid == undefined || pcid.length == '')
+        {
+            console.log("fail to get peer connection id:", pcid);
+            throw new Error("fail to get peer connection id");
+        }
+        
+        for (const info of publisers) {
+            recvPC.RemoveSubscriberMedia(info);
+        }
+        recvPC.SetRemoteUnSubscriberSdp();
+        
+        var data = {
+            'uid': this._uid,
+            'remoteUid': remoteUid,
+            'pcid': pcid,
+            'publishers': publisers
+        }
+        var respData;
+
+        console.log("request unsubscribe data:", data);
+        try {
+            respData = await this.ws.request('unsubscribe', data);
+        } catch (error) {
+            console.log('unsubscribe error:', error);
+            throw error;
+        }
+        console.log('unsubscribe return data:', respData);
     }
 };
 

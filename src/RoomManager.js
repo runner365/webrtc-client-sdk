@@ -22,7 +22,7 @@ class UserInfo extends EnhancedEventEmitter
     }
 
     async SubscribeUserStream(rtcClient, midinfos) {
-        let sdp;
+        var sdp;
 
         this.InitRecvPC();
 
@@ -38,7 +38,7 @@ class UserInfo extends EnhancedEventEmitter
         }
 
         console.log("start subscribe remoteUid:", this._uid, "sdp:", sdp);
-        let sdpObj = SdpTransformer.parse(sdp);
+        var sdpObj = SdpTransformer.parse(sdp);
         for (const media of sdpObj.media) {
             for (const info of midinfos) {
                 if (info.type == media.type) {
@@ -50,7 +50,7 @@ class UserInfo extends EnhancedEventEmitter
         console.log("local midinfos object:", JSON.stringify(midinfos));
 
         //send subscribe request to server
-        let respData;
+        var respData;
         try {
             respData = await rtcClient.Subscribe(this._uid, midinfos, sdp);
         } catch (error) {
@@ -62,14 +62,14 @@ class UserInfo extends EnhancedEventEmitter
         }
         console.log("rtc client subscribe response data:", respData);
 
-        let respSdp = respData.sdp;
-        let sdpJson = SdpTransformer.parse(respSdp);
+        var respSdp = respData.sdp;
+        var sdpJson = SdpTransformer.parse(respSdp);
         console.log("rtc json sdp:", JSON.stringify(sdpJson));
         this._rtcRecvDev.UpdateRemoteSdp(respSdp);
 
-        let trackList = [];
+        var trackList = [];
         for (const mediaInfo of midinfos) {
-            let newTrack = await new Promise(async (resolve, reject) => {
+            var newTrack = await new Promise(async (resolve, reject) => {
                 this._rtcRecvDev.on('newTrack', (track) => {
                     console.log("rtc manager rtc receive new track:", track);
                     if (track != null) {
@@ -125,8 +125,8 @@ class RoomManager extends EnhancedEventEmitter
 
 
     async Join() {
-        let respInfo;
-        let url = "ws://" + this._server;
+        var respInfo;
+        var url = "ws://" + this._server;
         console.log("start connect: ", url);
         console.log("roomid:", this._roomId, ",", "userId:", this._uid);
         this._client = new RtcClient();
@@ -141,7 +141,7 @@ class RoomManager extends EnhancedEventEmitter
             throw error;
         }
 
-        for (let user of respInfo.users) {
+        for (var user of respInfo.users) {
             this._insertUser(user.uid);
         }
         console.log("the room has users:", respInfo.users, " in roomId:", this._roomId);
@@ -149,8 +149,8 @@ class RoomManager extends EnhancedEventEmitter
 
     _on_notification(info) {
         console.log("receive notification information:", info);
-        let data   = info.data;
-        let method = info.method;
+        var data   = info.data;
+        var method = info.method;
         switch (method) {
             case 'userin':
             {
@@ -193,18 +193,18 @@ class RoomManager extends EnhancedEventEmitter
     }
 
     _insertUser(uid) {
-        let isExist = this._users.has(uid);
+        var isExist = this._users.has(uid);
         if (isExist) {
             console.log("the notification uid:", uid, "has already existed.");
             return;
         }
-        let newUser = new UserInfo(this._roomId, uid);
+        var newUser = new UserInfo(this._roomId, uid);
         console.log("add new user id:", uid, "in room:", this._roomId);
         this._users.set(uid, newUser);
     }
 
     _removeUser(uid) {
-        let isExist = this._users.has(uid);
+        var isExist = this._users.has(uid);
         if (!isExist) {
             console.log("the notification uid:", uid, "has not existed");
             return;
@@ -214,17 +214,17 @@ class RoomManager extends EnhancedEventEmitter
     }
 
     async Subscribe(remoteUid, midinfos) {
-        let sdp;
+        var sdp;
 
-        let isExist = this._users.has(remoteUid);
+        var isExist = this._users.has(remoteUid);
         if (!isExist) {
             throw new Error('remote uid:', remoteUid, "doesn't exist");
         }
-        let remoteUerInfo = this._users.get(remoteUid);
+        var remoteUerInfo = this._users.get(remoteUid);
 
         remoteUerInfo.InitRecvPC();
 
-        let newMediaStream = await remoteUerInfo.SubscribeUserStream(this._client, midinfos);
+        var newMediaStream = await remoteUerInfo.SubscribeUserStream(this._client, midinfos);
 
         console.log("create remote user:", remoteUid, "media stream:", newMediaStream);
 
@@ -237,11 +237,11 @@ class RoomManager extends EnhancedEventEmitter
             throw new Error('rtc client is not ready');
         }
 
-        let offSdp;
-        let mediaTracks = [];
+        var offSdp;
+        var mediaTracks = [];
 
         console.log("start publishing video stream...");
-        let videoTrack = this._rtcSendDev.getVideoTrack();
+        var videoTrack = this._rtcSendDev.getVideoTrack();
 
         if (videoTrack != null) {
             mediaTracks.push(videoTrack);
@@ -257,7 +257,7 @@ class RoomManager extends EnhancedEventEmitter
             throw error;
         }
         
-        let respData;
+        var respData;
         try {
             respData = await this._client.Publish(offSdp);
         } catch (error) {
@@ -275,11 +275,11 @@ class RoomManager extends EnhancedEventEmitter
             throw new Error('rtc client is not ready');
         }
 
-        let offSdp;
-        let mediaTracks = [];
+        var offSdp;
+        var mediaTracks = [];
 
         console.log("start publishing audio stream...");
-        let audioTrack = this._rtcSendDev.getAudioTrack();
+        var audioTrack = this._rtcSendDev.getAudioTrack();
 
         if (audioTrack != null) {
             mediaTracks.push(audioTrack);
@@ -295,7 +295,7 @@ class RoomManager extends EnhancedEventEmitter
             throw error;
         }
         
-        let respData;
+        var respData;
         try {
             respData = await this._client.Publish(offSdp);
         } catch (error) {
@@ -313,12 +313,12 @@ class RoomManager extends EnhancedEventEmitter
             throw new Error('rtc client is not ready');
         }
 
-        let offSdp;
-        let mediaTracks = [];
+        var offSdp;
+        var mediaTracks = [];
 
         console.log("start publishing stream...");
-        let videoTrack = this._rtcSendDev.getVideoTrack();
-        let audioTrack = this._rtcSendDev.getAudioTrack();
+        var videoTrack = this._rtcSendDev.getVideoTrack();
+        var audioTrack = this._rtcSendDev.getAudioTrack();
 
         if (videoTrack != null) {
             mediaTracks.push(videoTrack);
@@ -334,7 +334,7 @@ class RoomManager extends EnhancedEventEmitter
             throw error;
         }
         
-        let respData;
+        var respData;
         try {
             respData = await this._client.Publish(offSdp);
         } catch (error) {
@@ -347,10 +347,10 @@ class RoomManager extends EnhancedEventEmitter
     }
     
     async PublishCloseAll() {
-        let mediatracks = [];
+        var mediatracks = [];
         try {
-            let vtrack = this._rtcSendDev.getVideoTrack();
-            let atrack = this._rtcSendDev.getAudioTrack();
+            var vtrack = this._rtcSendDev.getVideoTrack();
+            var atrack = this._rtcSendDev.getAudioTrack();
 
             if (vtrack != null) {
                 mediatracks.push(vtrack);
@@ -362,7 +362,7 @@ class RoomManager extends EnhancedEventEmitter
             if (mediatracks.length == 0) {
                 throw new Error("there is no media track");
             }
-            let mids = await this._rtcSendDev.removeSendMediaTrack(mediatracks);
+            var mids = await this._rtcSendDev.removeSendMediaTrack(mediatracks);
             console.log("remove mids info:", mids);
             this._RequestPublishClose(mids);
         } catch (error) {
@@ -372,9 +372,9 @@ class RoomManager extends EnhancedEventEmitter
     }
 
     async PublishCloseVideo() {
-        let mediatracks = [];
+        var mediatracks = [];
         try {
-            let vtrack = this._rtcSendDev.getVideoTrack();
+            var vtrack = this._rtcSendDev.getVideoTrack();
 
             if (vtrack != null) {
                 mediatracks.push(vtrack);
@@ -382,7 +382,7 @@ class RoomManager extends EnhancedEventEmitter
                 throw new Error("there is no video track");
             }
 
-            let mids = await this._rtcSendDev.removeSendMediaTrack(mediatracks);
+            var mids = await this._rtcSendDev.removeSendMediaTrack(mediatracks);
             console.log("remove mids info:", mids);
             this._RequestPublishClose(mids);
         } catch (error) {
@@ -392,9 +392,9 @@ class RoomManager extends EnhancedEventEmitter
     }
 
     async PublishCloseAudio() {
-        let mediatracks = [];
+        var mediatracks = [];
         try {
-            let atrack = this._rtcSendDev.getAudioTrack();
+            var atrack = this._rtcSendDev.getAudioTrack();
 
             if (atrack != null) {
                 mediatracks.push(atrack);
@@ -402,7 +402,7 @@ class RoomManager extends EnhancedEventEmitter
                 throw new Error("there is no audio track");
             }
 
-            let mids = await this._rtcSendDev.removeSendMediaTrack(mediatracks);
+            var mids = await this._rtcSendDev.removeSendMediaTrack(mediatracks);
             console.log("remove mids info:", mids);
             this._RequestPublishClose(mids);
         } catch (error) {
@@ -418,7 +418,7 @@ class RoomManager extends EnhancedEventEmitter
         if (this._rtcSendDev == null) {
             throw new Error('rtc device is not ready');
         }
-        let respData;
+        var respData;
         try {
             respData = await this._client.UnPublish(mids);
         } catch (error) {

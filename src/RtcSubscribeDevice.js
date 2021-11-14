@@ -33,7 +33,7 @@ class RtcSubscribeDevice extends EnhancedEventEmitter
     }
 
     CreatePeerConnection() {
-        let config = {
+        var config = {
             'bundlePolicy': 'max-bundle',
             'rtcpMuxPolicy': 'require'
         };

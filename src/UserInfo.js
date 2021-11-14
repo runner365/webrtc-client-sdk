@@ -11,7 +11,7 @@ class UserInfo extends EnhancedEventEmitter
         this._mediaStream = null;
     }
 
-    CreateMedaiStream()
+    CreateMediaStream()
     {
         if (this._mediaStream == null)
         {

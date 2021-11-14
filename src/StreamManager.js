@@ -49,14 +49,14 @@ class StreamManager extends EnhancedEventEmitter
             throw new Error("the mediastream has been opened.");
         }
         this._mediaType = mediaType;
-        let constraints = {
+        var constraints = {
             video: { width: { exact: this._width }, height: { exact: this.height } },
             audio: {
                 channelCount: this._channel,
                 sampleRate: this._sampleRate,
             }
         }
-        let ms = null;
+        var ms = null;
         
         console.log("stream manager open mediatype:", mediaType, "constraints:", constraints);
         try {

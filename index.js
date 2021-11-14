@@ -32,7 +32,7 @@ AppController.prototype.JoinClicked = async function () {
 
     this._client = new Client();
 
-    let cameraMediaStream = await this._client.OpenCamera();
+    var cameraMediaStream = await this._client.OpenCamera();
 
     this.mediaElement.srcObject = cameraMediaStream;
 
@@ -43,7 +43,7 @@ AppController.prototype.JoinClicked = async function () {
         }
     });
 
-    let usersInRoom = null;//{"users":[{"uid":"11111"}, {"uid":"22222"}]}
+    var usersInRoom = null;//{"users":[{"uid":"11111"}, {"uid":"22222"}]}
     try
     {
         usersInRoom = await this._client.Join({serverHost: this.server,
@@ -56,30 +56,56 @@ AppController.prototype.JoinClicked = async function () {
         return;
     }
 
+    this._client.on('unpublish', async(data) => {
+        var remoteUid = data.uid;
+        var publishersInfo = data.publishers;
+
+        try {
+            this._client.UnSubscribe(remoteUid, publishersInfo);
+        } catch (error) {
+            console.log("UnSubscribe error:", error);
+            throw error;
+        }
+        var elementId = 'userContainer_' + remoteUid;
+        var userContainer = document.getElementById(elementId);
+        var remoteContainerElement = document.getElementById('remoteContainer');
+
+        if (userContainer == null)
+        {
+            console.log("fail to get element by id:", elementId);
+            return;
+        }
+
+        remoteContainerElement.removeChild(userContainer);
+    });
+
     this._client.on('publish', async (data) => {
         try {
-            let newMediaStream = await this._client.Subscribe(data['uid'], data['publishers']);
+            var remoteUid  = data['uid'];
+            var remotePcId = data['pcid'];
+
+            var newMediaStream = await this._client.Subscribe(remoteUid, remotePcId, data['publishers']);
             
-            let userContainer = document.createElement("div");
+            var userContainer = document.createElement("div");
             userContainer.id = 'userContainer_' + remoteUid;
 
-            let userLabel = document.createElement("label");
+            var userLabel = document.createElement("label");
             userLabel.id = 'userLabel_' + remoteUid;
             userLabel.innerHTML = 'remote user: ' + remoteUid;
             userContainer.appendChild(userLabel);
     
-            let mediaContainer = document.createElement("div");
+            var mediaContainer = document.createElement("div");
             mediaContainer.id = 'mediaContainer_' + remoteUid;
             userContainer.appendChild(mediaContainer);
     
-            let videoElement = document.createElement("video");
+            var videoElement = document.createElement("video");
             videoElement.id = 'videoElement_' + remoteUid;
             videoElement.srcObject    = newMediaStream;
             videoElement.style.width  = 320;
             videoElement.style.height = 240;
             mediaContainer.appendChild(videoElement);
     
-            let remoteContainerElement = document.getElementById('remoteContainer');
+            var remoteContainerElement = document.getElementById('remoteContainer');
             remoteContainerElement.appendChild(userContainer);
     
             videoElement.addEventListener("canplay", () => {
@@ -90,7 +116,8 @@ AppController.prototype.JoinClicked = async function () {
             console.log("subscribe error:", error);
             return;
         }
-    })
+    });
+
     //join: {serverHost: this.server, roomId: this.roomId, uid: this.userId}
 }
 

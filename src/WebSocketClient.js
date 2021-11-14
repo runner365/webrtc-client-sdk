@@ -38,20 +38,20 @@ class WebSocketClient extends EnhancedEventEmitter
 
     _handleMessage(msg) {
         console.log("handel message:", msg);
-        let data = JSON.parse(msg);
-        let request = data['request'];
+        var data = JSON.parse(msg);
+        var request = data['request'];
         if ((request != null) && (request == true)) {
             this._handleRequest(data);
             return;
         }
 
-        let response = data['response'];
+        var response = data['response'];
         if ((response != null) && (response == true)) {
             this._handleResponse(data);
             return;
         }
 
-        let notification = data['notification'];
+        var notification = data['notification'];
         if ((notification != null) && (notification == true)) {
             this._handleNotification(data);
             return;
@@ -67,7 +67,7 @@ class WebSocketClient extends EnhancedEventEmitter
 				// accept() function.
 				(dataAck) =>
 				{
-                    let response = {
+                    var response = {
                         'response': true,
                         'id': data['id'],
                         'ok': true,
@@ -87,7 +87,7 @@ class WebSocketClient extends EnhancedEventEmitter
 					{
 						errorReason = errorReason.message;
 					}
-                    let response = {
+                    var response = {
                         'response': true,
                         'id': data['id'],
                         'ok': false,
@@ -99,7 +99,7 @@ class WebSocketClient extends EnhancedEventEmitter
 		}
 		catch (error)
 		{
-            let response = {
+            var response = {
                 'response': true,
                 'id': data['id'],
                 'ok': false,
@@ -111,19 +111,19 @@ class WebSocketClient extends EnhancedEventEmitter
     }
 
     _handleResponse(data) {
-        let id = data['id'];
+        var id = data['id'];
         const sent = this._sents.get(id);
 
         if (!sent) {
             return;
         }
-        let ok = data['ok'];
-        let info = data['data'];
+        var ok = data['ok'];
+        var info = data['data'];
         if (ok && (info != null)) {
             sent.resolve(info);
         } else {
-            let errorCode   = data['errorCode'];
-            let errorReason = data['errorReason'];
+            var errorCode   = data['errorCode'];
+            var errorReason = data['errorReason'];
 
             console.log("response error code:", errorCode, ", reason:", errorReason);
             const err = new Error(errorReason);
@@ -137,8 +137,8 @@ class WebSocketClient extends EnhancedEventEmitter
     }
 
     async request(method, data) {
-        let id = this.id++;
-        let body = {
+        var id = this.id++;
+        var body = {
             'request' : true,
             'id': id,
             'method': method,
@@ -184,7 +184,7 @@ class WebSocketClient extends EnhancedEventEmitter
     }
 
     async notify(method, data) {
-        let body = {
+        var body = {
             'notification' : true,
             'method': method,
             'data' : data

@@ -90,7 +90,7 @@ class RtcPublishDevice extends EnhancedEventEmitter
     }
 
     CreatePeerConnection() {
-        let config = {
+        var config = {
             'bundlePolicy': 'max-bundle',
             'rtcpMuxPolicy': 'require'
         };
@@ -131,7 +131,7 @@ class RtcPublishDevice extends EnhancedEventEmitter
                     this.videoRtpTransceiver = this._senderPC.addTransceiver(track, {direction: 'sendonly'});
                 }
             }
-            let op = PUBLISH_SDP_OFFER_OPTIONS;
+            var op = PUBLISH_SDP_OFFER_OPTIONS;
             console.log("start creating offer, option:", op);
             offer = await this._senderPC.createOffer(op);
             await this._senderPC.setLocalDescription(offer);
@@ -156,10 +156,10 @@ class RtcPublishDevice extends EnhancedEventEmitter
     _removeSendRemoteSdp(infos) {
         try {
             for (const info of infos) {
-                let i;
-                let found = false;
+                var i;
+                var found = false;
                 for (i = 0; i < this._senderRemoteSdp.media.length; i++) {
-                    let media = this._senderRemoteSdp.media[i];
+                    var media = this._senderRemoteSdp.media[i];
                     if (media.mid == info.mid) {
                         found = true;
                         break;
@@ -176,7 +176,7 @@ class RtcPublishDevice extends EnhancedEventEmitter
     }
 
     async removeSendMediaTrack(mediatracks) {
-        let mids = [];
+        var mids = [];
         try {
             for (const track of mediatracks) {
                 if ((track.kind == 'video') && (track.id == this.videoTrack.id)) {
@@ -219,7 +219,7 @@ class RtcPublishDevice extends EnhancedEventEmitter
 
             this._removeSendRemoteSdp(mids);
     
-            let resSdp = SdpTransformer.write(this._senderRemoteSdp)
+            var resSdp = SdpTransformer.write(this._senderRemoteSdp)
             const answer = { type: 'answer', sdp: resSdp };
             console.log("remove send media track answer:", answer);
         
