@@ -27,6 +27,12 @@ class PCManager extends EnhancedEventEmitter
         this._recvTransceivers   = new Map();//key:publisherId, value: RTPTransceiver
     }
 
+    ClosePC()
+    {
+        this._pc.close();
+        this._pc = null;
+    }
+
     SetId(id)
     {
         this._id = id;

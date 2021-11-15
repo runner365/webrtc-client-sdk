@@ -20,6 +20,11 @@ class UserInfo extends EnhancedEventEmitter
         return this._mediaStream;
     }
 
+    CloseMediaStream()
+    {
+        this._mediaStream = null;
+    }
+
     GetMediaStream()
     {
         return this._mediaStream;

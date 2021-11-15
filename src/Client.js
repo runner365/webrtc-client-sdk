@@ -203,6 +203,7 @@ class Client extends EnhancedEventEmitter
             if (pc.GetType() == 'camera')
             {
                 sendPC = pc;
+                break;
             }
         }
         if (sendPC == null)
@@ -210,6 +211,8 @@ class Client extends EnhancedEventEmitter
             throw new Error("fail to find camera");
         }
         sendPC.removeSendTrack(removeMids);
+
+        sendPC.ClosePC();
 
         this._sendPCMap.delete(sendPC.GetId());
 
@@ -402,6 +405,8 @@ class Client extends EnhancedEventEmitter
             recvPC.RemoveSubscriberMedia(info);
         }
         recvPC.SetRemoteUnSubscriberSdp();
+        recvPC.ClosePC();
+        remoteUser.CloseMediaStream();
         
         var data = {
             'uid': this._uid,
@@ -419,6 +424,7 @@ class Client extends EnhancedEventEmitter
             throw error;
         }
         console.log('unsubscribe return data:', respData);
+
     }
 };
 

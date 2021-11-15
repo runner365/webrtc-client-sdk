@@ -66,17 +66,25 @@ AppController.prototype.JoinClicked = async function () {
             console.log("UnSubscribe error:", error);
             throw error;
         }
-        var elementId = 'userContainer_' + remoteUid;
-        var userContainer = document.getElementById(elementId);
+        var userContainerId = 'userContainer_' + remoteUid;
+        var userContainer = document.getElementById(userContainerId);
+        var userLabelId = 'userLabel_' + remoteUid;
+        var userLabel = document.getElementById(userLabelId);
+        var mediaContainerId = 'mediaContainer_' + remoteUid;
+        var mediaContainer = document.getElementById(mediaContainerId);
+        var videoElementId = 'videoElement_' + remoteUid;
+        var videoElement = document.getElementById(videoElementId);
         var remoteContainerElement = document.getElementById('remoteContainer');
 
-        if (userContainer == null)
-        {
-            console.log("fail to get element by id:", elementId);
-            return;
-        }
-
+        mediaContainer.removeChild(videoElement);
+        userContainer.removeChild(mediaContainer);
+        userContainer.removeChild(userLabel);
         remoteContainerElement.removeChild(userContainer);
+
+        videoElement   = null;
+        mediaContainer = null;
+        userLabel      = null;
+        userContainer  = null;
     });
 
     this._client.on('publish', async (data) => {
@@ -108,17 +116,13 @@ AppController.prototype.JoinClicked = async function () {
             var remoteContainerElement = document.getElementById('remoteContainer');
             remoteContainerElement.appendChild(userContainer);
     
-            videoElement.addEventListener("canplay", () => {
-                console.log("remote user:", remoteUid, "canplay....");
-                videoElement.play();
-            });
+            console.log("start play remote uid:", remoteUid);
+            await videoElement.play();
         } catch (error) {
             console.log("subscribe error:", error);
             return;
         }
     });
-
-    //join: {serverHost: this.server, roomId: this.roomId, uid: this.userId}
 }
 
 AppController.prototype.PublishClicked = async function () {
