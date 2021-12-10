@@ -43,11 +43,13 @@ class Client extends EnhancedEventEmitter
     /*
     return: {"users":[{"uid":"11111"}, {"uid":"22222"}]}
     */
-    async Join({serverHost, roomId, uid})
+    async Join({serverHost, roomId, userId})
     {
         this._server = serverHost;
         this._roomId = roomId;
-        this._uid    = uid;
+        this._uid    = userId;
+
+        console.log("join api server:", serverHost, "roomId:", roomId, "userId:", userId);
 
         this.ws = new wsClient();
 
@@ -60,7 +62,7 @@ class Client extends EnhancedEventEmitter
 
         var data = {
             'roomId': roomId,
-            'uid': uid
+            'uid': userId
         };
         console.log("ws is connected, starting joining server:", this.url, "data:", data);
         var respData = null;
@@ -135,6 +137,7 @@ class Client extends EnhancedEventEmitter
         var respData;
 
         try {
+            console.log("send publish request:", data);
             respData = await this.ws.request('publish', data);
         } catch (error) {
             console.log("send publish message exception:", error)

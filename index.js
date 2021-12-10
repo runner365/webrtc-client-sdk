@@ -46,9 +46,9 @@ AppController.prototype.JoinClicked = async function () {
     var usersInRoom = null;//{"users":[{"uid":"11111"}, {"uid":"22222"}]}
     try
     {
+        console.log("call join api userid:", this.userId);
         usersInRoom = await this._client.Join({serverHost: this.server,
-                                            roomId: this.roomId,
-                                            uid: this.userId});
+                                            roomId: this.roomId, userId: this.userId});
     }
     catch (error)
     {
