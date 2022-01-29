@@ -70,16 +70,21 @@ class StreamManager extends EnhancedEventEmitter
             }
             else
             {
-                throw new Error("the media type is error:" + this._mediaType);
+                throw new Error("open media type is error:" + this._mediaType);
             }
         } catch (error) {
-
+            console.log("open device error:", error);
             throw error;
         }
         
+        var videoTracksNum = ms.getVideoTracks().length;
+        var audioTracksNum = ms.getAudioTracks().length;
+
+        console.log("video tracks number:", videoTracksNum, "audio tracks number:", audioTracksNum);
+
         this._mediastream = new MediaStream();
-        this._videoTrack = ms.getVideoTracks()[0];
-        this._audioTrack = ms.getAudioTracks()[0];
+        this._videoTrack = ms.getVideoTracks()[videoTracksNum - 1];
+        this._audioTrack = ms.getAudioTracks()[audioTracksNum - 1];
         this._mediastream.addTrack(this._videoTrack);
         this._mediastream.addTrack(this._audioTrack);
 

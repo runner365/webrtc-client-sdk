@@ -305,9 +305,6 @@ class Client extends EnhancedEventEmitter
         }
 
         var offerSdp = await recvPC.GetSubscribeOfferSdp();
-        var offerSdpObj = SdpTransformer.parse(offerSdp);
-
-        console.log("subscriber offer sdp:", offerSdpObj);
         console.log("update publishers:", publishers);
 
         var respData = null;

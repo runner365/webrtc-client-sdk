@@ -128,6 +128,7 @@ class PCManager extends EnhancedEventEmitter
             offer = await this._pc.createOffer(op);
             await this._pc.setLocalDescription(offer);
 
+            console.log("local sdp string:", offer.sdp);
             var senderLocalSdp = SdpTransformer.parse(offer.sdp);
             console.log("local sdp object:", senderLocalSdp);
 
@@ -301,8 +302,23 @@ class PCManager extends EnhancedEventEmitter
 
     async GetSubscribeOfferSdp()
     {
-        console.log('GetSubscribeOfferSdp()...');
         var offer = await this._pc.createOffer();
+        var offerSdpObj = SdpTransformer.parse(offer.sdp);
+        
+        console.log("subscriber offer sdp:", offerSdpObj);
+        let payloadMap = new Map();
+		offerSdpObj.media.forEach(media => {
+			media.rtcpFb?.forEach(rtcpfb => {
+                if (!payloadMap.has(rtcpfb.payload)) {
+                    payloadMap.set(rtcpfb.payload, "rrtr");
+                    media.rtcpFb.push({payload:rtcpfb.payload, type:'rrtr'});
+                }
+            })
+		});
+        
+        var newSdp = SdpTransformer.write(offerSdpObj);
+        console.log("new sdp:", newSdp);
+        offer.sdp = newSdp;
         await this._pc.setLocalDescription(offer);
 
         //return sdp for requesting subscribe request

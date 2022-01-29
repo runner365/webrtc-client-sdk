@@ -3,7 +3,7 @@ const Client = require('./src/Client');
 console.log('------------------------------');
 
 var AppController = function () {
-    document.getElementById('roomId').value = '1001';
+    document.getElementById('roomId').value = '2001';
     document.getElementById('userId').value = Math.ceil(Math.random()*100000).toString();
 
     this.server = document.getElementById('server').value;
