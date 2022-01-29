@@ -9,6 +9,8 @@ it support:
 * publish/unpublish
 * subscribe/unsubscribe
 
+## Remark
+It's only for chrome browser.
 
 ## SFU
 The SFU server code Repositories: ([cpp_media_server](https://github.com/runner365/cpp_media_server))
