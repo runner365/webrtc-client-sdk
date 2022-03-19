@@ -6,18 +6,17 @@ class StreamManager extends EnhancedEventEmitter
     /*
     mediaType: 'camera', 'shared screen'
     */
-    construct() {
-        this._width      = 640;
-        this._height     = 480;
-        this._vBitrate   = 800*1000;
-        this._channel    = 2;
-        this._sampleRate = 48000;
+    constructor() {
+        super();
 
         this._mediastream = null;
         this._videoTrack  = null;
         this._audioTrack  = null;
-
-        console.log("StreamManager construct mediatype:", mediaType);
+        this._width      = 1280;
+        this._height     = 720;
+        this._vBitrate   = 1000*1000;
+        this._channel    = 2;
+        this._sampleRate = 48000;
     }
 
     GetAudioTrack()
@@ -49,23 +48,25 @@ class StreamManager extends EnhancedEventEmitter
             throw new Error("the mediastream has been opened.");
         }
         this._mediaType = mediaType;
+
         var constraints = {
-            video: { width: { exact: this._width }, height: { exact: this.height } },
+            video: { width: this._width , height: this._height, frameRate: 15, bitrate: this._vBitrate },
             audio: {
                 channelCount: this._channel,
                 sampleRate: this._sampleRate,
-            }
+            },
         }
         var ms = null;
         
-        console.log("stream manager open mediatype:", mediaType, "constraints:", constraints);
         try {
             if (mediaType == 'camera')
             {
+                console.log("open camera constraints:", constraints);
                 ms = await navigator.mediaDevices.getUserMedia(constraints);
             }
             else if (mediaType == 'screen')
             {
+                console.log("open screen constraints:", constraints);
                 ms = await navigator.mediaDevices.getDisplayMedia(constraints);
             }
             else

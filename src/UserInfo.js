@@ -2,12 +2,13 @@ const EnhancedEventEmitter = require('./EnhancedEventEmitter');
 
 class UserInfo extends EnhancedEventEmitter
 {
-    constructor({roomId, uid})
+    constructor({roomId, uid, userType})
     {
         super();
 
         this._roomId = roomId;
         this._uid    = uid;
+        this._userType = userType;
         this._mediaStream = null;
     }
 

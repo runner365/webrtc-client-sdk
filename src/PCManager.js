@@ -126,11 +126,32 @@ class PCManager extends EnhancedEventEmitter
             console.log("start creating offer, option:", op);
 
             offer = await this._pc.createOffer(op);
-            await this._pc.setLocalDescription(offer);
-
-            console.log("local sdp string:", offer.sdp);
             var senderLocalSdp = SdpTransformer.parse(offer.sdp);
+
+            let payloadMap = new Map();
+
+            senderLocalSdp.media.forEach(media => {
+                if (media.type == 'video') {
+                    media.fmtp?.forEach(fmtp => {
+                        if (!payloadMap.has(fmtp.payload)) {
+                            let pos = fmtp.config.indexOf('apt=');
+                            if (pos == 0) {
+                                return;
+                            }
+                            payloadMap.set(fmtp.payload, true);
+                            media.fmtp.push({payload: fmtp.payload, config: 'x-google-start-bitrate=1500'});
+                            media.fmtp.push({payload: fmtp.payload, config: 'x-google-min-bitrate=1000'});
+                            media.fmtp.push({payload: fmtp.payload, config: 'x-google-max-bitrate=3000'});
+                        }
+                    })
+                }
+            });
+
             console.log("local sdp object:", senderLocalSdp);
+            var newSdp = SdpTransformer.write(senderLocalSdp);
+            offer.sdp = newSdp;
+
+            await this._pc.setLocalDescription(offer);
 
             var retInfo = {
                 offSdp: offer.sdp,

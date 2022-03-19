@@ -269,7 +269,8 @@ class Client extends EnhancedEventEmitter
                 if (info.method == 'userin')
                 {
                     var remoteUid = info.data['uid'];
-                    var remoteUser = new UserInfo({roomId: this._roomId, uid:remoteUid});
+                    var userType  = info.data['user_type'];
+                    var remoteUser = new UserInfo({roomId: this._roomId, uid:remoteUid, userType: userType});
                     this._remoteUsers.set(remoteUid, remoteUser);
                 }
                 this.safeEmit(info.method, info.data);
@@ -280,7 +281,7 @@ class Client extends EnhancedEventEmitter
         });
     }
 
-    async Subscribe(remoteUid, remotePcId, publishers)
+    async Subscribe(remoteUid, userType, remotePcId, publishers)
     {
         if (!this._connected)
         {
@@ -294,7 +295,8 @@ class Client extends EnhancedEventEmitter
         }
         var remoteUser = this._remoteUsers.get(remoteUid);
 
-        console.log("start subscribe remote user:", remoteUser, "publishers:", publishers);
+        console.log("start subscribe remote user:", remoteUser, "publishers:",
+            publishers, "userType:", userType);
 
         var recvPC = new PCManager();
         recvPC.CreatePeerConnection('recv');
@@ -311,6 +313,7 @@ class Client extends EnhancedEventEmitter
         var data = {
             'roomId': this._roomId,
             'uid': this._uid,
+            'user_type': userType,
             'remoteUid': remoteUid,
             'remotePcId': remotePcId,
             'publishers': publishers,

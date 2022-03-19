@@ -91,8 +91,11 @@ AppController.prototype.JoinClicked = async function () {
         try {
             var remoteUid  = data['uid'];
             var remotePcId = data['pcid'];
+            var userType   = data['user_type'];
 
-            var newMediaStream = await this._client.Subscribe(remoteUid, remotePcId, data['publishers']);
+            console.log(' receive publish message user type:', userType);
+
+            var newMediaStream = await this._client.Subscribe(remoteUid, userType, remotePcId, data['publishers']);
             
             var userContainer = document.createElement("div");
             userContainer.id = 'userContainer_' + remoteUid;
