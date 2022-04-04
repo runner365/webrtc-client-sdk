@@ -250,8 +250,12 @@ class Client extends EnhancedEventEmitter
         
         this.ws.on('close', () => 
         {
+            if (this._connected) {
+                this.safeEmit('disconected', '');
+            }
             this._connected = false;
             this._closed = true;
+            
             reject(new Error('protoo close'));
         });
 
@@ -265,6 +269,7 @@ class Client extends EnhancedEventEmitter
         this.ws.on('notification', (info) =>
         {
             try {
+                console.log("notification method:", info.method);
                 console.log("notification info:", info);
                 if (info.method == 'userin')
                 {
@@ -370,9 +375,30 @@ class Client extends EnhancedEventEmitter
         recvPC.SetSubscribeInfo(pcid, publishers)
         recvPC.SetId(pcid);
         this._recvPCMap.set(pcid, recvPC);
+
+        remoteUser.SetPcId(pcid);
+        remoteUser.SetPublishers(publishers);
+    
         return mediaStream;
     }
 
+    GetRemoteUserPcId(remoteUid) {
+        var remoteUser = this._remoteUsers.get(remoteUid);
+        if (!remoteUser) {
+            return '';
+        }
+        return remoteUser.GetPcId();
+    }
+
+    GetRemoteUserPublishers(remoteUid) {
+        var publisers;
+        var remoteUser = this._remoteUsers.get(remoteUid);
+        if (!remoteUser) {
+            return publisers;
+        }
+
+        return remoteUser.GetPublishers();
+    }
     async UnSubscribe(remoteUid, publisers)
     {
         if (!this._connected)

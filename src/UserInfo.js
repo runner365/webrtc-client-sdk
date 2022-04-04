@@ -10,8 +10,27 @@ class UserInfo extends EnhancedEventEmitter
         this._uid    = uid;
         this._userType = userType;
         this._mediaStream = null;
+
+        this._pcId = ''
+        this._publishers;
     }
 
+    SetPcId(pcid) {
+        this._pcId = pcid;
+    }
+
+    GetPcid() {
+        return this._pcId;
+    }
+
+    SetPublishers(publishers) {
+        this._publishers = publishers;
+    }
+
+    GetPublishers() {
+        return this._publishers;
+    }
+    
     CreateMediaStream()
     {
         if (this._mediaStream == null)

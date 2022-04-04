@@ -1,0 +1,54 @@
+div.AllContainer {
+    display: flex;
+    background-color: whitesmoke;
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+    margin: 1px;
+    justify-content: space-between;
+}
+
+div.OwnerContainer {
+    display: flex;
+    float: left;
+    background-color: #f0f0fa;
+    flex-direction: column;
+    width: 50%;
+    height: 100%;
+    margin: 15px;
+    justify-content: space-between;
+}
+
+div.UserContainer {
+    display: flex;
+    float: right;
+    background-color:#f0f0fa;
+    flex-direction: column;
+    width: 50%;
+    height: 100%;
+    margin: 10px;
+    justify-content: space-between;
+}
+
+div.logArea {
+    display: flex;
+    float: left;
+    background-color: #f0f0fa;
+    flex-direction: column;
+    width: 80%;
+    height: 100%;
+    margin: 15px;
+    justify-content: space-between;
+}
+
+.videoContainer {
+    width: 480px;
+    height: 270px;
+}
+
+.videoView {
+    width: 480px;
+    height: 270px;
+    object-fit: fill;
+}
+

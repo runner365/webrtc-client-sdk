@@ -20,7 +20,7 @@ class PCManager extends EnhancedEventEmitter
         this._senderRemoteSdp   = null;
         this._receiverRemoteSdp = null;
         this._direction         = 'send';//or 'recv'
-        this._type              = 'camera';//or 'screen'
+        this._type              = 'screen';//or 'screen'
         this._id                = '';
         this._remoteUid         = '';
         this._remotePublishers  = new Map();//key:pcid, value info:{"pid": "xxxx", "type": "video", "mid": 0, "ssrc": 12345678}

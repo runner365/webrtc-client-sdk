@@ -4,31 +4,36 @@
     </head>
     <body>
         <h1>webrtc client(to cpp_media_server)</h1>
-        <div>
-            <label>server:</label> <input id='server' type='text' size=20 value="192.168.1.98:8000"/>
-            <br/>
-            <label>roomid:</label> <input id='roomId' type='text' size=10 />
-            <label>userid:</label> <input id='userId' type='text' size=10 />
-        </div>
-        <div>
-            <button id="join">join</button>
-            <button id="publish">publish</button>
-            <button id="unpublish">unpublish</button>
-            <br>
-        </div>
-        <div id="medialive">
-            publish preview:
-            <div id="container">
-                <video id="video_container_publish" playsinline controls autoplay muted width="320" height="240">
-                </video>
+        <div class="AllContainer">
+            <div class="OwnerContainer">
+                <div>
+                    <label>server:</label> <input id='server' type='text' size=20 value="192.168.1.98:8000"/>
+                    <br/>
+                    <label>roomid:</label> <input id='roomId' type='text' size=10 />
+                    <label>userid:</label> <input id='userId' type='text' size=10 />
+                </div>
+                <div>
+                    <button id="opencamera">open camera</button>
+                    <button id="join">join</button>
+                    <button id="publish">publish</button>
+                    <button id="unpublish">unpublish</button>
+                    <br>
+                </div>
+                <div id="medialive">
+                    publish preview:
+                    <div id="container">
+                        <video id="video_container_publish" playsinline controls autoplay muted width="320" height="240">
+                        </video>
+                    </div>
+                </div>
+                <div class="logArea">
+                    <label>event log:</label>
+                    <textarea  id="logTextArea" style="text-align: left; margin-bottom: 10px; resize: none;height: 300px;width: 50%;"></textarea>
+                </div>
+            </div>
+            <div id="remoteContainer" class="UserContainer">
+                
             </div>
         </div>
-        <div id="remoteContainer">
-            
-        </div>
-        <script src="index.js"></script>
-        <script>
-            var app = new AppController();
-        </script>
     </body>
 </html>
