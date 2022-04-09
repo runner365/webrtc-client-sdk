@@ -6,24 +6,45 @@
         <h1>webrtc client(to cpp_media_server)</h1>
         <div class="AllContainer">
             <div class="OwnerContainer">
-                <div>
-                    <label>server:</label> <input id='server' type='text' size=20 value="192.168.1.98:8000"/>
-                    <br/>
-                    <label>roomid:</label> <input id='roomId' type='text' size=10 />
-                    <label>userid:</label> <input id='userId' type='text' size=10 />
-                </div>
-                <div>
-                    <button id="opencamera">open camera</button>
-                    <button id="join">join</button>
-                    <button id="publish">publish</button>
-                    <button id="unpublish">unpublish</button>
-                    <br>
-                </div>
-                <div id="medialive">
-                    publish preview:
-                    <div id="container">
-                        <video id="video_container_publish" playsinline controls autoplay muted width="320" height="240">
-                        </video>
+                <div class="AllContainer" id="OwnerHeader">
+                    <div>
+                        <div>
+                            <label>server:</label> <input id='server' type='text' size=20 value="192.168.1.98:8000"/>
+                            <br/>
+                            <label>roomid:</label> <input id='roomId' type='text' size=10 />
+                            <label>userid:</label> <input id='userId' type='text' size=10 />
+                        </div>
+                        <div>
+                            <button id="opencamera">open camera</button>
+                            <button id="join">join</button>
+                            <button id="publish">publish</button>
+                            <button id="unpublish">unpublish</button>
+                            <br>
+                        </div>
+                        <div id="medialive">
+                            publish preview:
+                            <div id="container">
+                                <video id="video_container_publish" playsinline controls autoplay muted width="320" height="240">
+                                </video>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="StatsContainer" id="stats">
+                        <div class="StatsItemContainer">
+                            <label class="TextStyle">Video Width:</label> <input id='videoWidth' type='text' size=10 class="TextStyle"/>
+                            <label class="TextStyle">Video Heigth:</label> <input id='videoHeight' type='text' size=10 class="TextStyle"/>
+                        </div>
+                        <div class="StatsItemContainer">
+                            <label class="TextStyle">Video Fps:</label> <input id='videoFps' type='text' size=10 class="TextStyle"/>
+                            <label class="TextStyle">Video Bps(kbps):</label> <input id='videoBps' type='text' size=10 class="TextStyle"/>
+                        </div>
+                        <div class="StatsItemContainer">
+                            <label class="TextStyle">Audio Fps:</label> <input id='audioFps' type='text' size=10 class="TextStyle"/>
+                            <label class="TextStyle">Audio Bps(kbps):</label> <input id='audioBps' type='text' size=10 class="TextStyle" />
+                        </div>
+                        <div class="StatsItemContainer">
+                            <label class="TextStyle">Rtt(ms):</label> <input id='Rtt' type='text' size=10 class="TextStyle"/>
+                        </div>
                     </div>
                 </div>
                 <div class="logArea">

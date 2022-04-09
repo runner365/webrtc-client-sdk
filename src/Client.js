@@ -3,6 +3,7 @@ const StreamManager = require('./StreamManager');
 const SdpTransformer = require('sdp-transform');
 const wsClient = require('./WebSocketClient');
 const UserInfo = require('./UserInfo');
+const MediaStatsInfo = require('./MediaStatsInfo');
 const PCManager = require('./PCManager')
 
 class Client extends EnhancedEventEmitter
@@ -19,8 +20,18 @@ class Client extends EnhancedEventEmitter
         this._connected = true;
         this._sendPCMap = new Map();//peerConnectionId, PCManager object
         this._recvPCMap = new Map();//peerConnectionId, PCManager object
+        this._sendVideoStats = new MediaStatsInfo();
+        this._sendAudioStats = new MediaStatsInfo();
 
         this._cameraIndex  = 0;
+
+        setInterval(async () => {
+            await this.OnPublisherStats();
+        }, 2000);
+
+        setInterval(async () => {
+            await this.OnSubscribeStats();
+        }, 2000);
     }
 
     async OpenCamera()
@@ -237,6 +248,123 @@ class Client extends EnhancedEventEmitter
         console.log("UnPublish response message:", respData);
 
         return respData;
+    }
+
+    async OnPublisherStats() {
+        let statsList = await this.GetPublisherRtcStats();
+        if (!statsList) {
+            return;
+        }
+        
+        statsList.forEach((report) => {
+            //console.log("report type:", report.type, ", report:", JSON.stringify(report));
+            if (report.type == 'outbound-rtp') {
+                if (report.mediaType == 'video') {
+                    this._sendVideoStats.SetWidth(report.frameWidth);
+                    this._sendVideoStats.SetHeight(report.frameHeight);
+                    this._sendVideoStats.SetFps(report.framesPerSecond);
+                    this._sendVideoStats.SetBytesSent(report.bytesSent);
+                } else if (report.mediaType == 'audio') {
+                    this._sendAudioStats.SetFps(report.framesPerSecond);
+                    this._sendAudioStats.SetBytesSent(report.bytesSent);
+                    this._sendAudioStats.SetFrameSent(report.packetsSent);
+                }
+            } else if (report.type == 'candidate-pair') {
+                if (report.nominated) {
+                    this._sendVideoStats.SetRtt(report.currentRoundTripTime * 1000);
+                }
+            }
+        });
+
+        this.safeEmit('stats', {
+            'video': {
+                'width': this._sendVideoStats.GetWidth(),
+                'height': this._sendVideoStats.GetHeight(),
+                'fps': this._sendVideoStats.GetFps(),
+                'bps': this._sendVideoStats.GetSentBitsPerSec()
+            },
+            'audio': {
+                'fps': this._sendAudioStats.GetFps(),
+                'bps': this._sendAudioStats.GetSentBitsPerSec()
+            },
+            'rtt': this._sendVideoStats.GetRtt()
+        });
+    }
+
+    async GetPublisherRtcStats() {
+        if (this._sendPCMap.size == 0) {
+            return null;
+        }
+
+        for (const sendPc of this._sendPCMap.values()) {
+            if (sendPc == null) {
+                console.log('peer connection is null, the pc map length:', this._sendPCMap.size);
+                continue;
+            }
+    
+            let stats = await sendPc.GetStats();
+    
+            return stats;
+        }
+
+        return null;
+    }
+
+    async OnSubscribeStats() {
+        if (this._remoteUsers.size == 0) {
+            return;
+        }
+
+        for (const user of this._remoteUsers.values()) {
+            if (user == null) {
+                continue;
+            }
+            let pcId = user.GetPcid();
+
+            let recvPc = this._recvPCMap.get(pcId);
+            if (recvPc == null) {
+                continue;
+            }
+            let stats = await recvPc.GetStats();
+            if (stats == null) {
+                continue;
+            }
+
+            stats.forEach((report) => {
+                if (report.type == 'inbound-rtp') {
+                    if (report.mediaType == 'video') {
+                        user.RecvVideoStats().SetWidth(report.frameWidth);
+                        user.RecvVideoStats().SetHeight(report.frameHeight);
+                        user.RecvVideoStats().SetFps(report.framesPerSecond);
+                        user.RecvVideoStats().SetBytesSent(report.bytesReceived);
+                    } else if (report.mediaType == 'audio') {
+                        user.RecvAudioStats().SetFps(report.framesPerSecond);
+                        user.RecvAudioStats().SetBytesSent(report.bytesReceived);
+                        user.RecvAudioStats().SetFrameSent(report.packetsReceived);
+                    }
+                } else if (report.type == 'candidate-pair') {
+                    if (report.nominated) {
+                        user.RecvVideoStats().SetRtt(report.currentRoundTripTime * 1000);
+                    }
+                }
+            });
+
+            this.safeEmit('remoteStats', {
+                'uid': user.GetUserId(),
+                'video': {
+                    'width':  user.RecvVideoStats().GetWidth(),
+                    'height': user.RecvVideoStats().GetHeight(),
+                    'fps':    parseInt(user.RecvVideoStats().GetFps()),
+                    'bps':    parseInt(user.RecvVideoStats().GetSentBitsPerSec())
+                },
+                'audio': {
+                    'fps': parseInt(user.RecvAudioStats().GetFps()),
+                    'bps': parseInt(user.RecvAudioStats().GetSentBitsPerSec())
+                },
+                'rtt': user.RecvVideoStats().GetRtt()
+            });
+        }
+        return;
     }
 
     _wsRegistEvent(resolve, reject)

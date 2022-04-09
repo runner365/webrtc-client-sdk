@@ -1,4 +1,5 @@
 const EnhancedEventEmitter = require('./EnhancedEventEmitter');
+const MediaStatsInfo = require('./MediaStatsInfo');
 
 class UserInfo extends EnhancedEventEmitter
 {
@@ -13,6 +14,17 @@ class UserInfo extends EnhancedEventEmitter
 
         this._pcId = ''
         this._publishers;
+
+        this._recvVideoStats = new MediaStatsInfo();
+        this._recvAudioStats = new MediaStatsInfo();
+    }
+
+    RecvVideoStats() {
+        return this._recvVideoStats;
+    }
+
+    RecvAudioStats() {
+        return this._recvAudioStats;
     }
 
     SetPcId(pcid) {

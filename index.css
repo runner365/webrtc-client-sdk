@@ -1,3 +1,7 @@
+.TextStyle {
+    padding:10px;
+}
+
 div.AllContainer {
     display: flex;
     background-color: whitesmoke;
@@ -17,6 +21,26 @@ div.OwnerContainer {
     height: 100%;
     margin: 15px;
     justify-content: space-between;
+}
+
+div.StatsContainer {
+    display: flex;
+    float: left;
+    background-color:#f0f0fa;
+    flex-direction: column;
+    width: 90%;
+    height: 40%;
+    margin: 10px;
+    font-size: 50%;
+}
+
+div.StatsItemContainer {
+    display: flex;
+    float: left;
+    background-color:#f0f0fa;
+    flex-direction: row;
+    width: 100%;
+    height: 50%;
 }
 
 div.UserContainer {
@@ -42,13 +66,13 @@ div.logArea {
 }
 
 .videoContainer {
-    width: 480px;
-    height: 270px;
+    width: 320px;
+    height: 180px;
 }
 
 .videoView {
-    width: 480px;
-    height: 270px;
+    width: 320px;
+    height: 180px;
     object-fit: fill;
 }
 
