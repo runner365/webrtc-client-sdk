@@ -21,7 +21,6 @@ class PCManager extends EnhancedEventEmitter
         this._receiverRemoteSdp = null;
         this._direction         = 'send';//or 'recv'
         this._type              = 'screen';//or 'screen'
-        this._id                = '';
         this._remoteUid         = '';
         this._remotePublishers  = new Map();//key:pcid, value info:{"pid": "xxxx", "type": "video", "mid": 0, "ssrc": 12345678}
         this._recvTransceivers   = new Map();//key:publisherId, value: RTPTransceiver
@@ -38,16 +37,6 @@ class PCManager extends EnhancedEventEmitter
     {
         this._pc.close();
         this._pc = null;
-    }
-
-    SetId(id)
-    {
-        this._id = id;
-    }
-
-    GetId()
-    {
-        return this._id;
     }
 
     SetType(type)

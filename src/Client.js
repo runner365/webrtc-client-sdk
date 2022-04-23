@@ -1,10 +1,10 @@
 const EnhancedEventEmitter = require('./EnhancedEventEmitter');
 const StreamManager = require('./StreamManager');
 const SdpTransformer = require('sdp-transform');
-const wsClient = require('./WebSocketClient');
 const UserInfo = require('./UserInfo');
 const MediaStatsInfo = require('./MediaStatsInfo');
 const PCManager = require('./PCManager')
+const HttpClient = require("./HttpClient");
 
 class Client extends EnhancedEventEmitter
 {
@@ -24,6 +24,7 @@ class Client extends EnhancedEventEmitter
         this._sendAudioStats = new MediaStatsInfo();
 
         this._cameraIndex  = 0;
+        this.httpClient = new HttpClient();
 
         setInterval(async () => {
             await this.OnPublisherStats();
@@ -51,54 +52,9 @@ class Client extends EnhancedEventEmitter
         }
     }
 
-    /*
-    return: {"users":[{"uid":"11111"}, {"uid":"22222"}]}
-    */
-    async Join({serverHost, roomId, userId})
+    async PublishCamera({server, roomId, userId, videoEnable, audioEnable})
     {
-        this._server = serverHost;
-        this._roomId = roomId;
-        this._uid    = userId;
-
-        console.log("join api server:", serverHost, "roomId:", roomId, "userId:", userId);
-
-        this.ws = new wsClient();
-
-        this.url = 'ws://' + serverHost;
-        this.ws.Connect(this.url);
-
-        await new Promise((resolve, reject) => {
-            this._wsRegistEvent(resolve, reject);
-        });
-
-        var data = {
-            'roomId': roomId,
-            'uid': userId
-        };
-        console.log("ws is connected, starting joining server:", this.url, "data:", data);
-        var respData = null;
-        try {
-            respData = await this.ws.request('join', data);
-        } catch (error) {
-            console.log("join exception error:", error);
-            throw error;
-        }
-
-        var users = respData['users'];
-        for (const user of users)
-        {
-            var uid = user['uid'];
-            var userinfo = new UserInfo({roomId: this._roomId, uid: uid});
-
-            this._remoteUsers.set(uid, userinfo);
-        }
-        console.log("join response:", JSON.stringify(respData));
-
-        return respData;
-    }
-
-    async PublishCamera({videoEnable, audioEnable})
-    {
+        var url = 'http://' + server + '/publish/' + roomId + '/' + userId;
         if (!this._connected)
         {
             throw new Error('websocket is not ready');
@@ -140,30 +96,22 @@ class Client extends EnhancedEventEmitter
             throw error;
         }
 
-        var data = {
-            'roomId': this._roomId,
-            'uid': this._uid,
-            'sdp' : offerInfo.offSdp
-        }
-        var respData;
+        var data = offerInfo.offSdp;
+
+        var resp;
 
         try {
             console.log("send publish request:", data);
-            respData = await this.ws.request('publish', data);
+            resp = await this.httpClient.Post(url, data);
         } catch (error) {
             console.log("send publish message exception:", error)
             throw error
         }
-        console.log("Publish response message:", respData);
+        console.log("Publish response message:", resp);
 
-        var answerSdp = respData['sdp'];
-        var peerConnectionId = respData['pcid'];
+        await sendCameraPc.SetSendAnswerSdp(resp);
 
-        sendCameraPc.SetId(peerConnectionId);
-
-        await sendCameraPc.SetSendAnswerSdp(answerSdp);
-
-        var answerSdpObj = SdpTransformer.parse(answerSdp);
+        var answerSdpObj = SdpTransformer.parse(resp);
         for (const item of answerSdpObj.media)
         {
             if (item.type == 'video')
@@ -185,6 +133,7 @@ class Client extends EnhancedEventEmitter
 
     async UnPublishCamera({videoDisable, audioDisable})
     {
+        var url = 'http://' + server + '/unpublish/' + roomId + '/' + userId;
         if (!this._connected)
         {
             throw new Error('websocket is not ready');
@@ -240,7 +189,7 @@ class Client extends EnhancedEventEmitter
         var respData;
         try {
             console.log("unpublish request: ", data);
-            respData = await this.ws.request('unpublish', data);
+            respData = await this.httpClient.Post(url, data);
         } catch (error) {
             console.log("send unpublish message exception:", error)
             throw error
@@ -367,53 +316,6 @@ class Client extends EnhancedEventEmitter
         return;
     }
 
-    _wsRegistEvent(resolve, reject)
-    {
-        this.ws.on('open', () =>
-        {
-            this._connected = true;
-            this._closed = false;
-            resolve(0);
-        });
-        
-        this.ws.on('close', () => 
-        {
-            if (this._connected) {
-                this.safeEmit('disconected', '');
-            }
-            this._connected = false;
-            this._closed = true;
-            
-            reject(new Error('protoo close'));
-        });
-
-        this.ws.on('error', (err) =>
-        {
-            this._connected = false;
-            this._closed = true;
-            reject(err);
-        });
-
-        this.ws.on('notification', (info) =>
-        {
-            try {
-                console.log("notification method:", info.method);
-                console.log("notification info:", info);
-                if (info.method == 'userin')
-                {
-                    var remoteUid = info.data['uid'];
-                    var userType  = info.data['user_type'];
-                    var remoteUser = new UserInfo({roomId: this._roomId, uid:remoteUid, userType: userType});
-                    this._remoteUsers.set(remoteUid, remoteUser);
-                }
-                this.safeEmit(info.method, info.data);
-            } catch (error) {
-                console.log("notify error:", error);
-            }
-            
-        });
-    }
-
     async Subscribe(remoteUid, userType, remotePcId, publishers)
     {
         if (!this._connected)
@@ -501,7 +403,6 @@ class Client extends EnhancedEventEmitter
 
         console.log("set subscribe pcid:", pcid, "publishers:", publishers);
         recvPC.SetSubscribeInfo(pcid, publishers)
-        recvPC.SetId(pcid);
         this._recvPCMap.set(pcid, recvPC);
 
         remoteUser.SetPcId(pcid);

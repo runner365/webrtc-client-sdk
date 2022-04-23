@@ -19,6 +19,7 @@
     "events": "",
     "express": "^4.17.1",
     "fs": "",
+    "http_request": "^0.1.2",
     "net": "",
     "protoo-client": "",
     "retry": "^0.12.0",
