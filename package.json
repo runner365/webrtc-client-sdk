@@ -23,7 +23,8 @@
     "protoo-client": "",
     "retry": "^0.12.0",
     "sdp-transform": "",
-    "style-loader": "^3.3.1"
+    "style-loader": "^3.3.1",
+    "webpack": "^5.72.0"
   },
   "author": "",
   "license": "ISC",
