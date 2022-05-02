@@ -80,7 +80,7 @@ class Client extends EnhancedEventEmitter
             return;
         }
 
-        var url = 'http://' + this._server + '/publish/' + this._roomId + '/' + this._uid;
+        var url = 'http://' + this._server + '/rtc/v1/publish';
         if (!this._cameraStream)
         {
             throw new Error('camera does not init');
@@ -117,20 +117,31 @@ class Client extends EnhancedEventEmitter
             throw error;
         }
 
-        var data = offerInfo.offSdp;
-
         var resp;
-
         try {
+            var streamurl = 'webrtc://' + this._server + '/' + this._roomId + '/' + this._uid;
+            var data = {
+                streamurl: streamurl,
+                sdp: offerInfo.offSdp,  // offer sdp
+                clientip: ''
+              }
             console.log("send publish request url:", url, ", data:", data);
-            resp = await this.httpClient.Post(url, data);
+            resp = await this.httpClient.Post(url, JSON.stringify(data));
         } catch (error) {
             console.log("send publish message exception:", error)
             throw error
         }
-        console.log("Publish response message:", resp);
+        var respJson = JSON.parse(resp);
+        console.log("Publish response message:", respJson);
 
-        await sendCameraPc.SetSendAnswerSdp(resp);
+        if (respJson['code'] != 200) {
+            throw new Error('publish error:' + respJson['code'] + ', message:' + respJson['msg']);
+        }
+
+        var respData = respJson['data'];
+        var sessionid = respData['sessionid']
+        var respSdp   = respData['sdp'];
+        await sendCameraPc.SetSendAnswerSdp(respSdp, sessionid);
 
         var answerSdpObj = SdpTransformer.parse(resp);
         for (const item of answerSdpObj.media)
@@ -159,8 +170,8 @@ class Client extends EnhancedEventEmitter
         if ((this._roomId == undefined) || (this._roomId.length == 0)) {
             return;
         }
-        
-        var url = 'http://' + server + '/unpublish/' + this._roomId + '/' + this._uid;
+        /* /rtc/v1/unpublish */
+        var url = 'http://' + server + '/rtc/v1/unpublish';
 
         if (!this._cameraStream)
         {
@@ -196,22 +207,31 @@ class Client extends EnhancedEventEmitter
         {
             throw new Error("fail to find camera");
         }
+        var sessionid = sendPC.GetSendSessionId();
+
         sendPC.removeSendTrack(removeMids);
 
         sendPC.ClosePC();
 
         this._sendPCMap.delete(this._uid + '_send');
 
+        /*
+            {
+                streamurl: 'webrtc://domain/app/stream',
+                sessionid:string // 推流时返回的唯一id
+            }
+        */
         //send unpublish request
+        var streamurl = 'webrtc://' + this._server + '/' + this._roomId + '/' + this._uid;
         var data = {
-            'roomId': this._roomId,
-            'uid': this._uid
+            'streamurl': streamurl,
+            'sessionid': sessionid
         }
 
         var respData;
         try {
-            console.log("unpublish request: ", data);
-            respData = await this.httpClient.Post(url, data);
+            console.log("unpublish request: ", JSON.stringify(data));
+            respData = await this.httpClient.Post(url, JSON.stringify(data));
         } catch (error) {
             console.log("send unpublish message exception:", error)
             throw error
@@ -395,24 +415,48 @@ class Client extends EnhancedEventEmitter
 
         var offerSdp = await recvPC.GetSubscribeOfferSdp();
 
-        var respData = null;
-        var url = 'http://' + this._server + '/subscribe/' + this._roomId + '/' + this._uid + '/' + remoteUid;
+        var resp = null;
+        var url = 'http://' + this._server + '/rtc/v1/play';
+        var streamurl = 'webrtc://' + this._server + '/' + this._roomId + '/' + remoteUid;
+        var data = {
+            streamurl: streamurl,
+            sdp: offerSdp,
+            clientip: ''
+          }
 
         try {
             console.log("request subscribe url:", url);
-            console.log("request subscribe sdp:", offerSdp);
-            respData = await this.httpClient.Post(url, offerSdp);
+            console.log("request subscribe data:", JSON.stringify(data));
+            resp = await this.httpClient.Post(url, JSON.stringify(data));
         } catch (error) {
             console.log("send subscribe message exception:", error)
             throw error
         }
-        console.log("subscribe response message:", respData);
+        /*
+            {
+              code: int,
+              msg:  string,
+              data: {
+                sdp:string,   // answer sdp 
+                sessionid:string // 该路下行的唯一id
+              }
+            }
+        */
+        console.log("subscribe response message:", resp);
+        var respJson = JSON.parse(resp);
+        
+        if (respJson['code'] != 200) {
+            throw new Error('subscribe error:', respJson['code'], ', message:', respJson['msg']);
+        }
+        var respData = respJson['data'];
 
-        var respSdp = respData;
+        var respSdp = respData['sdp'];
+        var sessionid = respData['sessionid'];
         var respSdpJson = SdpTransformer.parse(respSdp);
 
+        console.log('subscribe response sessionid:', sessionid);
         console.log("subscribe response json sdp:", JSON.stringify(respSdpJson));
-        recvPC.SetRemoteSubscriberSdp(respSdp);
+        recvPC.SetRemoteSubscriberSdp(respSdp, sessionid);
 
         var trackList = [];
         for (var i = 0; i < 2; i++)
@@ -468,17 +512,25 @@ class Client extends EnhancedEventEmitter
         console.log("start unsubscribe remote user:", remoteUser);
         
         var recvPC = this._recvPCMap.get(remoteUid + '_recv');
+        var sessionid = recvPC.GetRecvSessionId();
+
         recvPC.ClosePC();
         remoteUser.CloseMediaStream();
 
         this._recvPCMap.delete(remoteUser.GetUserId() + '_recv');
         
         var respData;
-        var url = 'http://' + this._server + '/unsubscribe/' + this._roomId + '/' + this._uid + '/' + remoteUid;
 
+        /* /rtc/v1/unplay */
+        var url = 'http://' + this._server + '/rtc/v1/unplay';
+        var streamurl = 'webrtc://' + this._server + '/' + this._roomId + '/' + remoteUid;
+        var data = {
+                     streamurl: streamurl,
+                     sessionid: sessionid
+                   }
         try {
             console.log("unsubscribe post url:", url);
-            respData = await this.httpClient.Post(url, '')
+            respData = await this.httpClient.Post(url, JSON.stringify(data));
         } catch (error) {
             console.log('unsubscribe error:', error);
             throw error;

@@ -17,6 +17,8 @@ class PCManager extends EnhancedEventEmitter
         this._vMid = 0;
         this._aMid = 0;
 
+        this._sendSessionId     = '';
+        this._recvSessionId     = '';
         this._senderRemoteSdp   = null;
         this._receiverRemoteSdp = null;
         this._direction         = 'send';//or 'recv'
@@ -170,7 +172,15 @@ class PCManager extends EnhancedEventEmitter
         }
     }
 
-    async SetSendAnswerSdp(remoteSdp)
+    GetSendSessionId() {
+        return this._sendSessionId;
+    }
+
+    GetRecvSessionId() {
+        return this._recvSessionId;
+    }
+
+    async SetSendAnswerSdp(remoteSdp, sessionid)
     {
         try {
             this._senderRemoteSdp = SdpTransformer.parse(remoteSdp);
@@ -178,6 +188,7 @@ class PCManager extends EnhancedEventEmitter
 
             const answer = { type: 'answer', sdp: remoteSdp };
             await this._pc.setRemoteDescription(answer);
+            this._sendSessionId     = sessionid;
         } catch (error) {
             console.log("setSenderRemoteSDP error:", error);
         }
@@ -284,7 +295,8 @@ class PCManager extends EnhancedEventEmitter
         return offer.sdp;
     }
 
-    SetRemoteSubscriberSdp(remoteSdp) {
+    SetRemoteSubscriberSdp(remoteSdp, sessionid) {
+        this._recvSessionId     = sessionid;
         this._receiverRemoteSdp = SdpTransformer.parse(remoteSdp);
         const answer = { type: 'answer', sdp: remoteSdp };
         this._pc.setRemoteDescription(answer)
