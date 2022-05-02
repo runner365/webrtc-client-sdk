@@ -22,12 +22,12 @@ class PCManager extends EnhancedEventEmitter
         this._direction         = 'send';//or 'recv'
         this._type              = 'screen';//or 'screen'
         this._remoteUid         = '';
-        this._remotePublishers  = new Map();//key:pcid, value info:{"pid": "xxxx", "type": "video", "mid": 0, "ssrc": 12345678}
         this._recvTransceivers   = new Map();//key:publisherId, value: RTPTransceiver
     }
 
     async GetStats() {
         if (this._pc == null) {
+            console.log("peerconnection is null...");
             return null;
         }
         return await this._pc.getStats();
@@ -250,71 +250,13 @@ class PCManager extends EnhancedEventEmitter
         await this._pc.setRemoteDescription(answer);
     }
 
-    AddSubscriberMedia(info)
+    AddSubscriberMedia(remoteUid)
     {
-        if (info.type == 'video') {
-            var videoTransceiver = this._pc.addTransceiver("video", {direction: "recvonly"});
-            this._recvTransceivers.set(info.pid, videoTransceiver);
-        } else if (info.type == 'audio') {
-            var audioTransceiver = this._pc.addTransceiver("audio", {direction: "recvonly"});
-            this._recvTransceivers.set(info.pid, audioTransceiver);
-        } else {
-            throw new Error('unkown media type:' + mediaType);
-        }
-    }
+        var videoTransceiver = this._pc.addTransceiver("video", {direction: "recvonly"});
+        this._recvTransceivers.set(remoteUid + '_video', videoTransceiver);
 
-    RemoveSubscriberMedia(info)
-    {
-        //var mediaTransceiver = this._recvTransceivers.get(info.pid);
-        //if (mediaTransceiver != undefined && mediaTransceiver != null)
-        //{
-        //    this._pc.removeTrack(mediaTransceiver.sender)
-        //}
-
-        for (const item of this._receiverRemoteSdp.media)
-        {
-            if (item.mid == info.mid)
-            {
-                item.direction = 'inactive';
-
-                item.port = 0;
-        
-                delete  item.ext;
-                delete  item.ssrcs;
-                delete  item.ssrcGroups;
-                delete  item.simulcast;
-                delete  item.simulcast_03;
-                delete  item.rids;
-                delete  item.extmapAllowMixed;
-                console.log("remove subscribe item:", item);
-            }
-        }
-        console.log("remove info.mid:", info.mid, "left sdp object:", this._receiverRemoteSdp.media);
-    }
-
-    SetSubscribeInfo(pcid, infos)
-    {
-        this._remotePublishers.set(pcid, infos);
-    }
-
-    GetSubscribePcId(infos)
-    {
-        for (const info of infos)
-        {
-            var pid = info.pid;
-            for (var [pcid, publisherInfos] of this._remotePublishers)
-            {
-                for (const publisher of publisherInfos) {
-                    console.log("info:", info, "pcid:", pcid, "publisher info:", publisher);
-                    if (publisher.pid == pid)
-                    {
-                        return pcid;
-                    }
-                }
-
-            }
-        }
-        return '';
+        var audioTransceiver = this._pc.addTransceiver("audio", {direction: "recvonly"});
+        this._recvTransceivers.set(remoteUid + '_audio', audioTransceiver);
     }
 
     async GetSubscribeOfferSdp()
@@ -346,19 +288,6 @@ class PCManager extends EnhancedEventEmitter
         this._receiverRemoteSdp = SdpTransformer.parse(remoteSdp);
         const answer = { type: 'answer', sdp: remoteSdp };
         this._pc.setRemoteDescription(answer)
-    }
-
-    async SetRemoteUnSubscriberSdp() {
-        var remoteSdp = SdpTransformer.write(this._receiverRemoteSdp);
-        const answer = { type: 'answer', sdp: remoteSdp };
-
-        console.log("set remote unsubscribe answer:", answer);
-        
-        await this._pc.setRemoteDescription(answer)
-        if (this._recvTransceivers.length == 0)
-        {
-            this._pc.close();
-        }
     }
 };
 

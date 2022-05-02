@@ -17,14 +17,20 @@ class Client extends EnhancedEventEmitter
         this._screenStream = null;
 
         this._closed = true;
-        this._connected = true;
-        this._sendPCMap = new Map();//peerConnectionId, PCManager object
-        this._recvPCMap = new Map();//peerConnectionId, PCManager object
+        this._sendPCMap = new Map();//uid_send, PCManager object
+        this._recvPCMap = new Map();//uid_recv, PCManager object
         this._sendVideoStats = new MediaStatsInfo();
         this._sendAudioStats = new MediaStatsInfo();
+        this._server = '';
+        this._uid = '';
+        this._roomId = '';
 
         this._cameraIndex  = 0;
         this.httpClient = new HttpClient();
+
+        setInterval(async () => {
+            await this.OnRefreshPublishers();
+        }, 2000);
 
         setInterval(async () => {
             await this.OnPublisherStats();
@@ -33,6 +39,21 @@ class Client extends EnhancedEventEmitter
         setInterval(async () => {
             await this.OnSubscribeStats();
         }, 2000);
+    }
+
+    Init(server, roomId, uid) {
+        this._server = server;
+        this._roomId = roomId;
+        this._uid    = uid;
+
+        console.log('client init server:', server, ', roomId:', roomId, ", uid:", uid);
+    }
+
+    IsInited() {
+        if ((this._server.length == 0) || (this._roomId.length == 0) || (this._uid.length == 0)) {
+            return false;
+        }
+        return true;
     }
 
     async OpenCamera()
@@ -52,14 +73,14 @@ class Client extends EnhancedEventEmitter
         }
     }
 
-    async PublishCamera({server, roomId, userId, videoEnable, audioEnable})
+    async PublishCamera({videoEnable, audioEnable})
     {
-        var url = 'http://' + server + '/publish/' + roomId + '/' + userId;
-        if (!this._connected)
-        {
-            throw new Error('websocket is not ready');
+        if (!this.IsInited()) {
+            alert('please init firstly...');
+            return;
         }
 
+        var url = 'http://' + this._server + '/publish/' + this._roomId + '/' + this._uid;
         if (!this._cameraStream)
         {
             throw new Error('camera does not init');
@@ -101,7 +122,7 @@ class Client extends EnhancedEventEmitter
         var resp;
 
         try {
-            console.log("send publish request:", data);
+            console.log("send publish request url:", url, ", data:", data);
             resp = await this.httpClient.Post(url, data);
         } catch (error) {
             console.log("send publish message exception:", error)
@@ -127,17 +148,19 @@ class Client extends EnhancedEventEmitter
                 throw new Error("the sdp type is unkown:", item.type);
             }
         }
-        this._sendPCMap.set(peerConnectionId, sendCameraPc);
+
+        this._sendPCMap.set(this._uid + '_send', sendCameraPc);
+
         return;
     }
 
-    async UnPublishCamera({videoDisable, audioDisable})
+    async UnPublishCamera({server, videoDisable, audioDisable})
     {
-        var url = 'http://' + server + '/unpublish/' + roomId + '/' + userId;
-        if (!this._connected)
-        {
-            throw new Error('websocket is not ready');
+        if ((this._roomId == undefined) || (this._roomId.length == 0)) {
+            return;
         }
+        
+        var url = 'http://' + server + '/unpublish/' + this._roomId + '/' + this._uid;
 
         if (!this._cameraStream)
         {
@@ -177,13 +200,12 @@ class Client extends EnhancedEventEmitter
 
         sendPC.ClosePC();
 
-        this._sendPCMap.delete(sendPC.GetId());
+        this._sendPCMap.delete(this._uid + '_send');
 
         //send unpublish request
         var data = {
             'roomId': this._roomId,
-            'uid': this._uid,
-            'pcid' : sendPC.GetId()
+            'uid': this._uid
         }
 
         var respData;
@@ -199,64 +221,103 @@ class Client extends EnhancedEventEmitter
         return respData;
     }
 
-    async OnPublisherStats() {
-        let statsList = await this.GetPublisherRtcStats();
-        if (!statsList) {
+    async OnRefreshPublishers() {
+        if (!this.IsInited()) {
             return;
         }
-        
-        statsList.forEach((report) => {
-            //console.log("report type:", report.type, ", report:", JSON.stringify(report));
-            if (report.type == 'outbound-rtp') {
-                if (report.mediaType == 'video') {
-                    this._sendVideoStats.SetWidth(report.frameWidth);
-                    this._sendVideoStats.SetHeight(report.frameHeight);
-                    this._sendVideoStats.SetFps(report.framesPerSecond);
-                    this._sendVideoStats.SetBytesSent(report.bytesSent);
-                } else if (report.mediaType == 'audio') {
-                    this._sendAudioStats.SetFps(report.framesPerSecond);
-                    this._sendAudioStats.SetBytesSent(report.bytesSent);
-                    this._sendAudioStats.SetFrameSent(report.packetsSent);
-                }
-            } else if (report.type == 'candidate-pair') {
-                if (report.nominated) {
-                    this._sendVideoStats.SetRtt(report.currentRoundTripTime * 1000);
+        try {
+            let url = 'http://' + this._server + '/api/webrtc/room';
+            let resp = await this.httpClient.Get(url);
+            console.log("get room info:", resp);
+            let respData = JSON.parse(resp);
+            
+            let rtcList  = respData['data']['rtc_list'];
+            let liveList = respData['data']['live_list'];
+
+            for (const liveUser of liveList) {
+                let uid = liveUser['uid'];
+                this._remoteUsers.set(uid, new UserInfo({roomId: this._roomId, uid: uid, userType: 'live'}));
+            }
+            for (const rtcUser of rtcList) {
+                let uid = rtcUser['uid'];
+                let publisherNum = rtcUser['publishers'];
+                if (publisherNum > 0) {
+                    this._remoteUsers.set(uid, new UserInfo({roomId: this._roomId, uid: uid, userType: 'rtc'}));
                 }
             }
-        });
 
-        this.safeEmit('stats', {
-            'video': {
-                'width': this._sendVideoStats.GetWidth(),
-                'height': this._sendVideoStats.GetHeight(),
-                'fps': this._sendVideoStats.GetFps(),
-                'bps': this._sendVideoStats.GetSentBitsPerSec()
-            },
-            'audio': {
-                'fps': this._sendAudioStats.GetFps(),
-                'bps': this._sendAudioStats.GetSentBitsPerSec()
-            },
-            'rtt': this._sendVideoStats.GetRtt()
-        });
+            if (rtcList && (rtcList.length > 0)) {
+                this.safeEmit('publishers', rtcList);
+            }
+        } catch (error) {
+            console.log("refresh publishers error:", error);
+        }
+    }
+
+    async OnPublisherStats() {
+        var statsList = null;
+        
+        try {
+            statsList = await this.GetPublisherRtcStats();
+            if (!statsList) {
+                return;
+            }
+
+            for(const report of statsList) {
+                //console.log("report type:", report.type, ", report:", JSON.stringify(report));
+                if (report.type == 'outbound-rtp') {
+                    if (report.mediaType == 'video') {
+                        this._sendVideoStats.SetWidth(report.frameWidth);
+                        this._sendVideoStats.SetHeight(report.frameHeight);
+                        this._sendVideoStats.SetFps(report.framesPerSecond);
+                        this._sendVideoStats.SetBytesSent(report.bytesSent);
+                    } else if (report.mediaType == 'audio') {
+                        this._sendAudioStats.SetFps(report.framesPerSecond);
+                        this._sendAudioStats.SetBytesSent(report.bytesSent);
+                        this._sendAudioStats.SetFrameSent(report.packetsSent);
+                    }
+                } else if (report.type == 'candidate-pair') {
+                    if (report.nominated) {
+                        this._sendVideoStats.SetRtt(report.currentRoundTripTime * 1000);
+                    }
+                }
+            }
+            this.safeEmit('stats', {
+                'video': {
+                    'width': this._sendVideoStats.GetWidth(),
+                    'height': this._sendVideoStats.GetHeight(),
+                    'fps': this._sendVideoStats.GetFps(),
+                    'bps': this._sendVideoStats.GetSentBitsPerSec()
+                },
+                'audio': {
+                    'fps': this._sendAudioStats.GetFps(),
+                    'bps': this._sendAudioStats.GetSentBitsPerSec()
+                },
+                'rtt': this._sendVideoStats.GetRtt()
+            });
+        } catch (error) {
+            //
+        }
     }
 
     async GetPublisherRtcStats() {
-        if (this._sendPCMap.size == 0) {
-            return null;
-        }
-
-        for (const sendPc of this._sendPCMap.values()) {
-            if (sendPc == null) {
-                console.log('peer connection is null, the pc map length:', this._sendPCMap.size);
-                continue;
+        return new Promise(async (resolve, reject) => {
+            if (this._sendPCMap.size == 0) {
+                reject("send pc map is empty");
             }
-    
-            let stats = await sendPc.GetStats();
-    
-            return stats;
-        }
-
-        return null;
+            this._sendPCMap.forEach(function(value, key) {
+                const sendPc = value;
+                console.log("pc key:", key, ", peerconnection:", value);
+                if (sendPc == null) {
+                    console.log('peer connection is null, the pc map length:', this._sendPCMap.size);
+                    reject("peer connection is null");
+                }
+        
+                sendPc.GetStats().then(function(stats) {
+                    resolve(stats);
+                });
+            });
+        });
     }
 
     async OnSubscribeStats() {
@@ -268,9 +329,8 @@ class Client extends EnhancedEventEmitter
             if (user == null) {
                 continue;
             }
-            let pcId = user.GetPcid();
 
-            let recvPc = this._recvPCMap.get(pcId);
+            let recvPc = this._recvPCMap.get(user.GetUserId() + '_recv');
             if (recvPc == null) {
                 continue;
             }
@@ -316,13 +376,8 @@ class Client extends EnhancedEventEmitter
         return;
     }
 
-    async Subscribe(remoteUid, userType, remotePcId, publishers)
+    async Subscribe(remoteUid)
     {
-        if (!this._connected)
-        {
-            throw new Error('websocket is not ready');
-        }
-
         var hasUid = this._remoteUsers.has(remoteUid);
         if (!hasUid)
         {
@@ -330,49 +385,37 @@ class Client extends EnhancedEventEmitter
         }
         var remoteUser = this._remoteUsers.get(remoteUid);
 
-        console.log("start subscribe remote user:", remoteUser, "publishers:",
-            publishers, "userType:", userType);
+        console.log("start subscribe remote user:", remoteUser);
 
         var recvPC = new PCManager();
         recvPC.CreatePeerConnection('recv');
         recvPC.SetRemoteUid(remoteUid);
 
-        for (const info of publishers) {
-            recvPC.AddSubscriberMedia(info);
-        }
+        recvPC.AddSubscriberMedia(remoteUid);
 
         var offerSdp = await recvPC.GetSubscribeOfferSdp();
-        console.log("update publishers:", publishers);
 
         var respData = null;
-        var data = {
-            'roomId': this._roomId,
-            'uid': this._uid,
-            'user_type': userType,
-            'remoteUid': remoteUid,
-            'remotePcId': remotePcId,
-            'publishers': publishers,
-            'sdp' : offerSdp
-        }
+        var url = 'http://' + this._server + '/subscribe/' + this._roomId + '/' + this._uid + '/' + remoteUid;
 
         try {
-            console.log("subscribe request: ", data);
-            respData = await this.ws.request('subscribe', data);
+            console.log("request subscribe url:", url);
+            console.log("request subscribe sdp:", offerSdp);
+            respData = await this.httpClient.Post(url, offerSdp);
         } catch (error) {
             console.log("send subscribe message exception:", error)
             throw error
         }
         console.log("subscribe response message:", respData);
 
-        var respSdp = respData.sdp;
-        var pcid    = respData.pcid;
+        var respSdp = respData;
         var respSdpJson = SdpTransformer.parse(respSdp);
 
         console.log("subscribe response json sdp:", JSON.stringify(respSdpJson));
         recvPC.SetRemoteSubscriberSdp(respSdp);
 
         var trackList = [];
-        for (const mediaInfo of publishers)
+        for (var i = 0; i < 2; i++)
         {
             console.log("subscribe is waiting track ready...");
             var newTrack = await new Promise(async (resolve, reject) =>
@@ -386,8 +429,7 @@ class Client extends EnhancedEventEmitter
                     }
                 });
             });
-            if (newTrack != null)
-            {
+            if (newTrack != null) {
                 trackList.push(newTrack);
             }
         }
@@ -401,12 +443,7 @@ class Client extends EnhancedEventEmitter
             mediaStream.addTrack(track);
         }
 
-        console.log("set subscribe pcid:", pcid, "publishers:", publishers);
-        recvPC.SetSubscribeInfo(pcid, publishers)
-        this._recvPCMap.set(pcid, recvPC);
-
-        remoteUser.SetPcId(pcid);
-        remoteUser.SetPublishers(publishers);
+        this._recvPCMap.set(remoteUid + '_recv', recvPC);
     
         return mediaStream;
     }
@@ -419,64 +456,29 @@ class Client extends EnhancedEventEmitter
         return remoteUser.GetPcId();
     }
 
-    GetRemoteUserPublishers(remoteUid) {
-        var publisers;
-        var remoteUser = this._remoteUsers.get(remoteUid);
-        if (!remoteUser) {
-            return publisers;
-        }
-
-        return remoteUser.GetPublishers();
-    }
-    async UnSubscribe(remoteUid, publisers)
+    async UnSubscribe(remoteUid)
     {
-        if (!this._connected)
-        {
-            throw new Error('websocket is not ready');
-        }
-
         var hasUid = this._remoteUsers.has(remoteUid);
         if (!hasUid)
         {
             throw new Error('remote uid has not exist:' + remoteUid);
         }
         var remoteUser = this._remoteUsers.get(remoteUid);
-        var pcid = '';
 
-        console.log("start unsubscribe remote user:", remoteUser, "publishers:", publisers);
-
-        for (var [keyPCid, recvPC] of this._recvPCMap)
-        {
-            pcid = recvPC.GetSubscribePcId(publisers);
-            if (pcid != undefined && pcid.length > 0)
-            {
-                break;
-            }
-        }
-        if (pcid == undefined || pcid.length == '')
-        {
-            console.log("fail to get peer connection id:", pcid);
-            throw new Error("fail to get peer connection id");
-        }
+        console.log("start unsubscribe remote user:", remoteUser);
         
-        for (const info of publisers) {
-            recvPC.RemoveSubscriberMedia(info);
-        }
-        recvPC.SetRemoteUnSubscriberSdp();
+        var recvPC = this._recvPCMap.get(remoteUid + '_recv');
         recvPC.ClosePC();
         remoteUser.CloseMediaStream();
-        
-        var data = {
-            'uid': this._uid,
-            'remoteUid': remoteUid,
-            'pcid': pcid,
-            'publishers': publisers
-        }
-        var respData;
 
-        console.log("request unsubscribe data:", data);
+        this._recvPCMap.delete(remoteUser.GetUserId() + '_recv');
+        
+        var respData;
+        var url = 'http://' + this._server + '/unsubscribe/' + this._roomId + '/' + this._uid + '/' + remoteUid;
+
         try {
-            respData = await this.ws.request('unsubscribe', data);
+            console.log("unsubscribe post url:", url);
+            respData = await this.httpClient.Post(url, '')
         } catch (error) {
             console.log('unsubscribe error:', error);
             throw error;

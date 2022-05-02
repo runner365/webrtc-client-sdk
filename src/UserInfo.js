@@ -12,9 +12,6 @@ class UserInfo extends EnhancedEventEmitter
         this._userType = userType;
         this._mediaStream = null;
 
-        this._pcId = ''
-        this._publishers;
-
         this._recvVideoStats = new MediaStatsInfo();
         this._recvAudioStats = new MediaStatsInfo();
     }
@@ -25,22 +22,6 @@ class UserInfo extends EnhancedEventEmitter
 
     RecvAudioStats() {
         return this._recvAudioStats;
-    }
-
-    SetPcId(pcid) {
-        this._pcId = pcid;
-    }
-
-    GetPcid() {
-        return this._pcId;
-    }
-
-    SetPublishers(publishers) {
-        this._publishers = publishers;
-    }
-
-    GetPublishers() {
-        return this._publishers;
     }
     
     CreateMediaStream()
