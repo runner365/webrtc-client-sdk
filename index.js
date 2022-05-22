@@ -46,13 +46,43 @@ var AppController = function () {
         document.getElementById("Rtt").value = data.rtt.toString();
     });
 
-    this._client.on('publishers', (rtcList) => {
-        this.UpdatePublishers(rtcList);
+    this._client.on('rtcPublishers', (rtcList) => {
+        this.UpdateRtcPublishers(rtcList);
+    });
+    
+    this._client.on('livePublishers', (liveList) => {
+        this.UpdateLivePublishers(liveList);
     });
     this._cameraReady = false;
 };
 
-AppController.prototype.UpdatePublishers = async function (rtcList) {
+AppController.prototype.UpdateLivePublishers = async function (liveList) {
+    for (const liveItem of liveList) {
+        var uid = liveItem['uid'];
+
+        if (uid == this.userId) {
+            continue;
+        }
+
+        let isExist = false;
+        for (const publisher of this._publishers) {
+            if (publisher == uid) {
+                isExist = true;
+                break;
+            }
+        }
+
+        if (isExist) {
+            continue;
+        }
+        console.log('append live uid:', uid, ' in selects');
+        this._publishers.push(uid);
+
+        document.getElementById('publishers_select').options.add(new Option(uid, uid));
+    }
+}
+
+AppController.prototype.UpdateRtcPublishers = async function (rtcList) {
     for (const rtcItem of rtcList) {
         var uid = rtcItem['uid'];
         var publishersCnt = rtcItem['publishers'];

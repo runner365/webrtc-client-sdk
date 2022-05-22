@@ -80,7 +80,7 @@ class Client extends EnhancedEventEmitter
             return;
         }
 
-        var url = 'http://' + this._server + '/publish/' + this._roomId + '/' + this._uid;
+        var url = 'http://' + this._server + '/whip/publish/' + this._roomId + '/' + this._uid;
         if (!this._cameraStream)
         {
             throw new Error('camera does not init');
@@ -247,7 +247,10 @@ class Client extends EnhancedEventEmitter
             }
 
             if (rtcList && (rtcList.length > 0)) {
-                this.safeEmit('publishers', rtcList);
+                this.safeEmit('rtcPublishers', rtcList);
+            }
+            if (liveList && (liveList.length > 0)) {
+                this.safeEmit('livePublishers', liveList);
             }
         } catch (error) {
             console.log("refresh publishers error:", error);
@@ -396,7 +399,7 @@ class Client extends EnhancedEventEmitter
         var offerSdp = await recvPC.GetSubscribeOfferSdp();
 
         var respData = null;
-        var url = 'http://' + this._server + '/subscribe/' + this._roomId + '/' + this._uid + '/' + remoteUid;
+        var url = 'http://' + this._server + '/whip/subscribe/' + this._roomId + '/' + remoteUid;
 
         try {
             console.log("request subscribe url:", url);
