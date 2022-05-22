@@ -17,6 +17,7 @@ class StreamManager extends EnhancedEventEmitter
         this._vBitrate   = 1000*1000;
         this._channel    = 2;
         this._sampleRate = 48000;
+        this._vFps       = 20;
     }
 
     GetAudioTrack()
@@ -50,7 +51,7 @@ class StreamManager extends EnhancedEventEmitter
         this._mediaType = mediaType;
 
         var constraints = {
-            video: { width: this._width , height: this._height, frameRate: 15, bitrate: this._vBitrate },
+            video: { width: this._width , height: this._height, frameRate: this._vFps, bitrate: this._vBitrate },
             audio: {
                 channelCount: this._channel,
                 sampleRate: this._sampleRate,
