@@ -17,7 +17,7 @@ class Client extends EnhancedEventEmitter
         this._screenStream = null;
 
         this._closed = true;
-        this._connected = true;
+        this._connected = false;
         this._sendPCMap = new Map();//peerConnectionId, PCManager object
         this._recvPCMap = new Map();//peerConnectionId, PCManager object
         this._sendVideoStats = new MediaStatsInfo();
@@ -26,11 +26,25 @@ class Client extends EnhancedEventEmitter
         this._cameraIndex  = 0;
 
         setInterval(async () => {
+            if (!this._connected) {
+                return;
+            }
             await this.OnPublisherStats();
         }, 2000);
 
         setInterval(async () => {
+            if (!this._connected) {
+                return;
+            }
             await this.OnSubscribeStats();
+        }, 2000);
+
+        setInterval(async () => {
+            if (!this._connected) {
+                return;
+            }
+            console.log("uid:", this._uid, " heartbeat");
+            await this.SendHeartBeat();
         }, 2000);
     }
 
@@ -527,6 +541,26 @@ class Client extends EnhancedEventEmitter
 
         return remoteUser.GetPublishers();
     }
+
+    async SendHeartBeat() {
+        if (!this._connected) {
+            throw new Error("websocket is not ready");
+        }
+        var data = {
+            'uid': this._uid
+        }
+        var respData;
+
+        console.log("request heartbeat data:", data);
+        try {
+            respData = await this.ws.request('heartbeat', data);
+        } catch (error) {
+            console.log('heartbeat error:', error);
+            throw error;
+        }
+        console.log('heartbeat return data:', respData);
+    }
+
     async UnSubscribe(remoteUid, publisers)
     {
         if (!this._connected)
